@@ -5,7 +5,7 @@ Deciding what to build and why
 🔍 Identify the Problem / Idea
 
 The Lebanese official journal Al Jarida Al Rasmiya contains critical legal and governmental information. However:
--Published mainly as PDFs or scanned images
+-Published mainly as long PDF documents
 -Difficult to search or filter information
 -Not automatically organized
 -Users must read manually to find relevant updates
@@ -13,7 +13,7 @@ The Lebanese official journal Al Jarida Al Rasmiya contains critical legal and g
 💡 Proposed Solution:
 Develop a smart web application “AljaridaAlrasmiya” that:
 -Automatically reads official journal documents
--Uses OCR to extract Arabic text
+-Extracts Arabic text directly from PDF files
 -Uses AI models to classify and filter topics
 -Displays organized and searchable content
 
@@ -23,11 +23,11 @@ This system will make official information accessible, structured, and searchabl
 🎯 Project Goals and Objectives
 
 Main Goal:
-Develop an intelligent web-based system that extracts, analyzes, and manages information from Al Jarida Al Rasmiya using OCR and AI.
+Develop an intelligent web-based system that extracts, analyzes, and manages information from Al Jarida Al Rasmiya using PDF text extraction and AI
 
 Objectives:
 -Upload and process official journal PDFs
--Extract Arabic text using OCR
+-Extract Arabic text directly from PDF files
 -Detect topics (laws, jobs, tenders, announcements…)
 -Store data in structured database
 -Use AI/NLP for classification
@@ -38,7 +38,7 @@ Objectives:
 
 ⏱ Time Feasibility
 Project divided into phases:
--OCR and text extraction
+-PDF text extraction module
 -AI classification
 -Web dashboard and automation
 
@@ -46,7 +46,7 @@ Estimated duration: 3–4 months.
 
 💰 Cost Feasibility
 Low-cost implementation using open-source tools:
--Python & Tesseract OCR
+-Python
 -Free AI/NLP models
 -Local hosting
 
@@ -54,7 +54,7 @@ Optional: domain and hosting.
 
 🧠 Technical Feasibility
 Technologies available:
--OCR: Tesseract (Arabic supported)
+-PDF processing: pdfplumber or PyPDF
 -AI/NLP: Python & Transformers
 -Backend: Flask (Python)
 -Database: MySQL
@@ -75,7 +75,7 @@ Figuring out how the project will be done
 
 Main development tasks include:
 -Collect official journal datasets
--Implement OCR text extraction
+-Implement PDF text extraction module
 -Clean and preprocess text
 -Build AI classification model
 -Design and implement database
@@ -90,11 +90,11 @@ Estimated timeline:
 February:
 -Project setup (GitHub, Jira)
 -Data collection
--OCR testing
+-PDF text extraction testing
 
 March:
 
--OCR module development
+-Text extraction module development
 -Database design
 -Start AI classification
 
@@ -123,7 +123,10 @@ Most tools are free and open-source.
 ⚠ Risk Management
 | Risk                  | Solution                        |
 | --------------------- | ------------------------------- |
-| Low OCR accuracy      | Image preprocessing & tuning    |
+| Inconsistent PDF text |   Apply text cleaning and 
+                           preprocessing
+
+|    formatting         |     
 | Arabic NLP complexity | Use pretrained models (AraBERT) |
 | Time constraints      | Divide tasks across team        |
 | Integration issues    | Test modules separately         |
@@ -134,7 +137,7 @@ The system is designed to automatically extract and classify information from Al
 
 Official Journal PDF
         ↓
-OCR Module (Arabic text extraction)
+PDF Text Extraction
         ↓
 Text Preprocessing & Cleaning
         ↓
@@ -147,7 +150,6 @@ Flask Web Application
 Search & User Dashboard
 
 Components
--OCR Engine: Extract Arabic text from scanned PDFs
 -AI Model: Classify extracted text into topics
 -Database: Store structured information
 -Web Dashboard: Display searchable content
@@ -164,7 +166,7 @@ Automatically classify extracted text into predefined categories:
 
 Approach
 
-1-Extract Arabic text using OCR
+1-Extract Arabic text from PDF files
 2-Clean and preprocess text
 3-Apply NLP classification model
 4-Store predicted category in database
@@ -187,12 +189,11 @@ Evaluation Metrics:
 Requirements:
 
 -Python 3.10+
--Tesseract OCR
 -MySQL
 -Git
 
 Install dependencies:
-pip install flask pytesseract pdf2image pillow transformers torch scikit-learn mysql-connector-python
+pip install flask  pillow transformers torch scikit-learn mysql-connector-python
 
 Run project:python app.py
 Open browser:http://127.0.0.1:5000
@@ -205,7 +206,7 @@ Step 1: Data Collection
 Official journal PDFs collected and stored locally.
 
 Step 2: Data Processing
-OCR extracts Arabic text from documents.
+System extracts Arabic text directly from PDF files
 
 Step 3: Text Preprocessing
 
