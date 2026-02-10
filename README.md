@@ -59,7 +59,10 @@ Technologies available:
 -Backend: Flask (Python)
 -Database: MySQL
 -Frontend: HTML/CSS/JS
-Challenges include OCR accuracy and Arabic NLP processing, but both are manageable.
+Challenges:
+-Arabic text preprocessing
+-AI classification accuracy
+These challenges are manageable using pretrained Arabic NLP models and preprocessing techniques.
 
 👥 Stakeholders
 -Developers: Salah Al Jardali/Daniel Ghazaly
@@ -121,19 +124,17 @@ Resources required:
 Most tools are free and open-source.
 
 ⚠ Risk Management
-| Risk                  | Solution                        |
-| --------------------- | ------------------------------- |
-| Inconsistent PDF text |   Apply text cleaning and 
-                           preprocessing
+| Risk                        | Solution                            |
+| --------------------------- | ----------------------------------- |
+| Inconsistent PDF formatting | Apply text cleaning & preprocessing |
+| Arabic NLP complexity       | Use pretrained models (AraBERT)     |
+| Time constraints            | Divide tasks between team members   |
+| Integration issues          | Test modules separately             |
 
-|    formatting         |     
-| Arabic NLP complexity | Use pretrained models (AraBERT) |
-| Time constraints      | Divide tasks across team        |
-| Integration issues    | Test modules separately         |
 
 🏗 System Architecture
 Overall Architecture
-The system is designed to automatically extract and classify information from Al Jarida Al Rasmiya using OCR and AI.
+The system is designed to automatically extract and classify information from Al Jarida Al Rasmiya using PDF text extraction and AI.
 
 Official Journal PDF
         ↓
@@ -200,7 +201,7 @@ Open browser:http://127.0.0.1:5000
 
 🔬Research Methodology
 
-This project follows an applied research methodology combining OCR and AI techniques.
+This project follows an applied research methodology combining extraction Arabic text directly from PDF and AI techniques.
 
 Step 1: Data Collection
 Official journal PDFs collected and stored locally.
@@ -223,6 +224,5 @@ Web application developed to manage and display extracted data.
 Step 6: Evaluation
 
 System tested for:
--OCR accuracy
 -Classification accuracy
 -Usability
