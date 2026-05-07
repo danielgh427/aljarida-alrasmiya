@@ -1,228 +1,410 @@
-📘 Project Management Phases
-🟢 1. Initiation Phase:
-Deciding what to build and why
+# Lebanese Laws & Tenders RAG Chatbot
 
-🔍 Identify the Problem / Idea
+## Project Overview
 
-The Lebanese official journal Al Jarida Al Rasmiya contains critical legal and governmental information. However:
--Published mainly as long PDF documents
--Difficult to search or filter information
--Not automatically organized
--Users must read manually to find relevant updates
+This project is an AI-powered Retrieval-Augmented Generation (RAG) chatbot designed to answer questions related to Lebanese laws and government tenders.
 
-💡 Proposed Solution:
-Develop a smart web application “AljaridaAlrasmiya” that:
--Automatically reads official journal documents
--Extracts Arabic text directly from PDF files
--Uses AI models to classify and filter topics
--Displays organized and searchable content
+The system combines:
 
-This system will make official information accessible, structured, and searchable.
+* MySQL structured data storage
+* Chroma vector database
+* multilingual semantic embeddings
+* FastAPI backend
+* LLM response generation
 
+The chatbot retrieves relevant legal and tender information semantically before generating answers.
 
-🎯 Project Goals and Objectives
+---
 
-Main Goal:
-Develop an intelligent web-based system that extracts, analyzes, and manages information from Al Jarida Al Rasmiya using PDF text extraction and AI
+# Main Features
 
-Objectives:
--Upload and process official journal PDFs
--Extract Arabic text directly from PDF files
--Detect topics (laws, jobs, tenders, announcements…)
--Store data in structured database
--Use AI/NLP for classification
--Provide searchable web interface
+* Semantic search over Lebanese laws
+* Semantic search over public tenders
+* Tender-law matching capability
+* Multilingual embedding support
+* FastAPI REST API backend
+* Vector similarity retrieval using ChromaDB
 
+---
 
-📊 Feasibility Study
+# System Architecture
 
-⏱ Time Feasibility
-Project divided into phases:
--PDF text extraction module
--AI classification
--Web dashboard and automation
+```text
+User Question
+     ↓
+FastAPI Backend
+     ↓
+Embedding Generation (query embedding)
+     ↓
+Vector Search in ChromaDB
+     ↓
+Retrieve Relevant Laws / Tenders
+     ↓
+LLM Response Generation
+     ↓
+Answer Returned to User
+```
 
-Estimated duration: 3–4 months.
+---
 
-💰 Cost Feasibility
-Low-cost implementation using open-source tools:
--Python
--Free AI/NLP models
--Local hosting
+# Project Structure
 
-Optional: domain and hosting.
+```text
+project/
+│
+├── api/
+│   └── rag_chatbot.py
+│
+├── embeddings/
+│   ├── generate_embeddings.py
+│   ├── fetch_laws.py
+│   ├── fetch_tenders.py
+│   └── vector_store.py
+│
+├── data/
+│   └── vector_db/
+│
+├── Frontend/
+│   ├──chatbot.js
+│   ├──index.html
+│   └──styles.css
+│
+├──database/
+│  ├──create_tables.sql
+│  └──db_connection.py
+│
+├── config.py
+├── run_server.py
+├── requirements.txt
+└── README.md
+```
 
-🧠 Technical Feasibility
-Technologies available:
--PDF processing: pdfplumber or PyPDF
--AI/NLP: Python & Transformers
--Backend: Flask (Python)
--Database: MySQL
--Frontend: HTML/CSS/JS
-Challenges:
--Arabic text preprocessing
--AI classification accuracy
-These challenges are manageable using pretrained Arabic NLP models and preprocessing techniques.
+---
 
-👥 Stakeholders
--Developers: Salah Al Jardali/Daniel Ghazaly
--Academic Supervisor: Project guidance and evaluation
--End Users: Citizens, researchers, job seekers
--Data Source: Al Jarida Al Rasmiya
--Future Admin: System maintenance
+# Core Components
 
-🟣 2. Planning Phase
-Figuring out how the project will be done
+---
 
-🧩 Define Tasks and Activities
+# 1 FastAPI Backend
 
-Main development tasks include:
--Collect official journal datasets
--Implement PDF text extraction module
--Clean and preprocess text
--Build AI classification model
--Design and implement database
--Develop web dashboard
--Testing and evaluation
--Documentation and presentation
+Main API file:
 
-📅 Project Timeline
+```text
+api/rag_chatbot.py
+```
 
-Estimated timeline:
+Responsible for:
 
-February:
--Project setup (GitHub, Jira)
--Data collection
--PDF text extraction testing
+* receiving user questions
+* calling semantic retrieval
+* generating final response
 
-March:
+Main endpoint:
 
--Text extraction module development
--Database design
--Start AI classification
+```text
+POST /ask
+```
 
-April:
+---
 
--Web dashboard development
--AI model improvement
--System integration
+# 2 Embedding Generation
 
-May:
+Main file:
 
--Testing and evaluation
--Final documentation
--Presentation and defense
+```text
+embeddings/generate_embeddings.py
+```
 
-💰 Cost & Resources
+Uses model:
 
-Resources required:
--Laptop/PC
--Python and open-source libraries
--Internet access
--GitHub & Jira tools
+```text
+intfloat/multilingual-e5-base
+```
 
-Most tools are free and open-source.
+Generates embeddings for:
 
-⚠ Risk Management
-| Risk                        | Solution                            |
-| --------------------------- | ----------------------------------- |
-| Inconsistent PDF formatting | Apply text cleaning & preprocessing |
-| Arabic NLP complexity       | Use pretrained models (AraBERT)     |
-| Time constraints            | Divide tasks between team members   |
-| Integration issues          | Test modules separately             |
+* laws
+* tenders
 
+Stored metadata includes:
 
-🏗 System Architecture
-Overall Architecture
-The system is designed to automatically extract and classify information from Al Jarida Al Rasmiya using PDF text extraction and AI.
+## Laws
 
-Official Journal PDF
-        ↓
-PDF Text Extraction
-        ↓
-Text Preprocessing & Cleaning
-        ↓
-AI Classification Model (NLP)
-        ↓
-MySQL Database Storage
-        ↓
-Flask Web Application
-        ↓
-Search & User Dashboard
+* title
+* law number
+* law type
+* law date
+* content
+* link
 
-Components
--AI Model: Classify extracted text into topics
--Database: Store structured information
--Web Dashboard: Display searchable content
+## Tenders
 
-🤖AI Model Methodology
-Objective
+* title
+* summary
+* location
+* deadline
+* link
 
-Automatically classify extracted text into predefined categories:
--Laws and decrees
--Job announcements
--Tenders
--Official decisions
--Public announcements
+---
 
-Approach
+# 3 Database Retrieval
 
-1-Extract Arabic text from PDF files
-2-Clean and preprocess text
-3-Apply NLP classification model
-4-Store predicted category in database
+## Laws source
 
-Model Options:
+```text
+fetch_laws.py
+```
 
--AraBERT (recommended for Arabic NLP)
--TF-IDF + Machine Learning classifier
--Keyword-based classification (baseline)
+Reads legal documents from MySQL.
 
-Evaluation Metrics:
+## Tenders source
 
--Accuracy
--Precision
--Recall
--F1-score
+```text
+fetch_tenders.py
+```
 
-💻Installation & Run Guide
+Reads tenders from MySQL.
 
-Requirements:
+---
 
--Python 3.10+
--MySQL
--Git
+# 4 Vector Database
 
-Install dependencies:
-pip install flask  pillow transformers torch scikit-learn mysql-connector-python
+Main storage:
 
-Run project:python app.py
-Open browser:http://127.0.0.1:5000
+```text
+data/vector_db/
+```
 
-🔬Research Methodology
+Uses:
 
-This project follows an applied research methodology combining extraction Arabic text directly from PDF and AI techniques.
+```text
+ChromaDB
+```
 
-Step 1: Data Collection
-Official journal PDFs collected and stored locally.
+Stores:
 
-Step 2: Data Processing
-System extracts Arabic text directly from PDF files
+* embeddings
+* ids
+* metadata
+* documents
 
-Step 3: Text Preprocessing
+---
 
--Remove noise
--Normalize Arabic text
--Tokenization
+---
 
-Step 4: AI Classification
-NLP model classifies content into categories.
+# 5 Vector Store Initialization
 
-Step 5: System Implementation
-Web application developed to manage and display extracted data.
+Main file:
 
-Step 6: Evaluation
+```text
+vector_store.py
+```
 
-System tested for:
--Classification accuracy
--Usability
+This file:
+
+* generates embeddings
+* stores vectors inside ChromaDB
+
+Run before starting chatbot:
+
+```bash
+python embeddings/vector_store.py
+```
+
+---
+
+# 6 Configuration
+
+Main file:
+
+```text
+config.py
+```
+
+Contains:
+
+```python
+DB_HOST = "localhost"
+DB_USER = "root"
+DB_PASSWORD = ""
+DB_NAME = "ai_tender_laws"
+```
+
+Also:
+
+```python
+VECTOR_DB_PATH
+```
+
+for vector database path.
+
+---
+
+# 7 Server Startup
+
+Main file:
+
+```text
+run_server.py
+```
+
+Run:
+
+```bash
+python run_server.py
+```
+
+or:
+
+```bash
+uvicorn api.rag_chatbot:app --reload
+```
+
+---
+
+# Installation
+
+---
+
+# Step 1 Create virtual environment
+
+```bash
+python -m venv venv
+```
+
+---
+
+# Step 2 Activate virtual environment
+
+Windows:
+
+```bash
+venv\Scripts\activate
+```
+
+---
+
+# Step 3 Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+# requirements.txt
+
+```txt
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.5.0
+chromadb>=0.4.18
+sentence-transformers>=2.2.2
+openai>=1.3.7
+mysql-connector-python>=8.2.0
+torch>=2.1.1
+numpy>=1.24.0
+requests>=2.31.0
+Pillow>=10.1.0
+python-dotenv>=1.0.0
+beautifulsoup4>=4.12.2
+```
+
+---
+
+# Execution Order
+
+Always run in this order:
+
+```text
+1 Start MySQL
+2 Install requirements
+3 Generate embeddings
+4 Start backend server
+5 Open frontend
+```
+
+---
+
+# Generate Embeddings First
+
+```bash
+python embeddings/vector_store.py
+```
+
+Required because:
+
+Without embeddings, retrieval will return empty results.
+
+---
+
+# Start Backend
+
+```bash
+python run_server.py
+```
+
+API docs:
+
+```text
+http://localhost:8000/docs
+```
+
+Health check:
+
+```text
+http://localhost:8000/health
+```
+
+---
+
+# Database Requirements
+
+MySQL database must contain:
+
+## laws table
+
+## tenders table
+
+Required before embeddings generation.
+
+---
+
+# If Sharing Project with Another Person
+
+Send:
+
+* project folder
+* database export (.sql)
+* README.md
+* requirements.txt
+
+Then they run:
+
+```bash
+pip install -r requirements.txt
+python embeddings/vector_store.py
+python run_server.py
+```
+
+---
+
+# Important Development Note
+
+If tenders are updated:
+
+regenerate embeddings again:
+
+```bash
+python embeddings/vector_store.py
+```
+
+This ensures ChromaDB stays synchronized.
+
+---
+
+# Academic Purpose
+
+This system is developed as part of a graduation project for:
+
+AI chatbot for Lebanese laws and government tender matching.

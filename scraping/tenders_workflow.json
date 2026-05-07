@@ -1,0 +1,465 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -976,
+        -32
+      ],
+      "id": "e54da41e-9714-45f2-b154-3d3b90ed1d58",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.ppa.gov.lb/ar/tenders?page={{ $json.page }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            },
+            {
+              "name": "Accept-Language",
+              "value": "en-US,en;q=0.9"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          },
+          "allowUnauthorizedCerts": true,
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -688,
+        -48
+      ],
+      "id": "c2594721-f748-48c1-abc8-94a3b1ee0468",
+      "name": "HTTP Request",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "id",
+              "cssSelector": "table tbody tr td:nth-child(1)",
+              "returnArray": true
+            },
+            {
+              "key": "buyer_entity",
+              "cssSelector": "table tbody tr td:nth-child(2) ",
+              "skipSelectors": "img",
+              "returnArray": true
+            },
+            {
+              "key": "tender_code",
+              "cssSelector": "table tbody tr td:nth-child(3)",
+              "returnArray": true
+            },
+            {
+              "key": "link",
+              "cssSelector": "table tbody tr td:nth-child(4) a",
+              "returnValue": "attribute",
+              "attribute": "href",
+              "returnArray": true
+            },
+            {
+              "key": "method",
+              "cssSelector": "table tbody tr td:nth-child(5)",
+              "returnArray": true
+            },
+            {
+              "key": "submission_deadline",
+              "cssSelector": "table tbody tr td:nth-child(6)",
+              "returnArray": true
+            },
+            {
+              "key": "row",
+              "cssSelector": "table tbody tr",
+              "returnValue": "html",
+              "returnArray": true
+            },
+            {
+              "key": "title",
+              "cssSelector": "table tr tbody td:nth-child(4) a",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        -496,
+        -16
+      ],
+      "id": "dd9a5a24-6ede-48ae-80b7-e4f4dabd1096",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "link",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -272,
+        16
+      ],
+      "id": "53aed941-96ff-41f8-be5c-a5fcb089699a",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.link }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1500
+            }
+          },
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        80
+      ],
+      "id": "c5817625-35d6-475a-92e7-b93ceb4e33ac",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "summary",
+              "cssSelector": "div:contains(\"ملخص الشراء\") + div"
+            },
+            {
+              "key": "final_submission_deadline",
+              "cssSelector": "div:contains(\"الموعد النهائي لتقديم العروض\") + div"
+            },
+            {
+              "key": "opening_session_date",
+              "cssSelector": "div:contains(\"موعد جلسة فتح العروض\") + div"
+            },
+            {
+              "key": "document_price",
+              "cssSelector": "div:contains(\"سعر دفتر الشروط\") + div"
+            },
+            {
+              "key": "document_location",
+              "cssSelector": "div:contains(\"سعر دفتر الشروط\") + div"
+            },
+            {
+              "key": "title",
+              "cssSelector": "h3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        144,
+        48
+      ],
+      "id": "2861ec73-5db5-4396-aad0-806fc1292b6c",
+      "name": "HTML2"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "let page = $json.summary || \"\";\n\n// -------- Helper functions --------\n\n// Generic extractor\nfunction extract(regex) {\n  const match = page.match(regex);\n  return match ? match[1].trim() : null;\n}\n\n// Clean Arabic text\nfunction cleanText(text) {\n  if (!text) return null;\n  return text\n    .replace(/\\n+/g, \" \")\n    .replace(/\\s+/g, \" \")\n    .replace(/[\\u200E\\u200F]/g, \"\") // remove hidden RTL chars\n    .trim();\n}\n\n// Convert to ISO date\nfunction toISO(dateString) {\n  if (!dateString) return null;\n  let d = new Date(dateString);\n  return isNaN(d) ? null : d.toISOString();\n}\n\n// Normalize price (extract number only)\nfunction normalizePrice(price) {\n  if (!price) return null;\n  let match = price.match(/[0-9.,]+/);\n  return match ? match[0].replace(/,/g, \"\") : null;\n}\n\n// -------- Extraction --------\n\n// Title\nlet title = extract(/ملخص الشراء\\s*([\\s\\S]*?)الموعد النهائي/);\nif (title) {\n  title = title.split(\"\\n\")[0];\n}\n\n// Summary\nlet summary = extract(/ملخص الشراء([\\s\\S]*?)الموعد النهائي/);\n\n// Dates\nlet finalDeadline = extract(/الموعد النهائي لتقديم العروض\\s*([0-9:\\-\\s]+)/);\nlet openingDate = extract(/موعد جلسة فتح العروض[\\s\\S]*?([0-9:\\-\\s]{16,})/);\n\n// Document price\nlet documentPrice = extract(/سعر دفتر الشروط\\s*([0-9.,\\sA-Z]+)/);\n\n// Document location\nlet documentLocation = extract(/مكان استلام دفتر الشروط([\\s\\S]*?)سعر دفتر الشروط/);\n\n// -------- Clean & Normalize --------\n\ntitle = cleanText(title);\nsummary = cleanText(summary);\ndocumentLocation = cleanText(documentLocation);\n\nfinalDeadline = toISO(finalDeadline);\nopeningDate = toISO(openingDate);\n\ndocumentPrice = normalizePrice(documentPrice);\n\n// -------- Return clean object --------\n\nreturn {\n  json: {\n    link: $json.link,\n    title,\n    summary,\n    final_submission_deadline: finalDeadline,\n    opening_session_date: openingDate,\n    document_price: documentPrice,\n    document_location: documentLocation\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        80
+      ],
+      "id": "a3befb33-9147-45e8-b56a-8497504bd370",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        304,
+        -128
+      ],
+      "id": "348a2e9b-2526-45ac-ac59-921c05161dc2",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "return Array.from({ length: 2 }, (_, i) => {\n  return {\n    json: {\n      page: i + 1\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -848,
+        -256
+      ],
+      "id": "d2772f48-03d7-422c-bbca-2d2798d60e40",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -128,
+        208
+      ],
+      "id": "57974b66-01d6-4a88-a9dc-90cffde79b40",
+      "name": "Wait",
+      "webhookId": "370bf6ba-4497-4a2b-8965-074ca856ef2b"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "table": {
+          "__rl": true,
+          "value": "tenders",
+          "mode": "list",
+          "cachedResultName": "tenders"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "link",
+        "valueToMatchOn": "={{$json.link}}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "summary",
+              "value": "={{$json.summary}}"
+            },
+            {
+              "column": "title",
+              "value": "={{$json.title}}"
+            },
+            {
+              "column": "final_submission_deadline",
+              "value": "={{$json.final_submission_deadline}}"
+            },
+            {
+              "column": "opening_session_date",
+              "value": "={{$json.opening_session_date}}"
+            },
+            {
+              "column": "document_price",
+              "value": "={{$json.document_price}}"
+            },
+            {
+              "column": "document_location",
+              "value": "={{$json.document_location}}"
+            },
+            {
+              "column": "link",
+              "value": "={{$json.link}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        640,
+        96
+      ],
+      "id": "d82adb1c-41b4-4275-8714-7f90212ed416",
+      "name": "Insert or update rows in a table",
+      "credentials": {
+        "mySql": {
+          "id": "IEdam0Xh1LXi1ehN",
+          "name": "MySQL account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "HTML2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Insert or update rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "959f3a68-2484-47c4-8751-dea11d035eb3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fb7b210557d4662dce1899f898a8ee2a308354d204437c8fd5af66ab24cec5a1"
+  },
+  "id": "7PrWYjHXgKWBrRFr",
+  "tags": []
+}

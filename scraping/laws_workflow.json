@@ -1,0 +1,343 @@
+{
+  "name": "Laws_scraping",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2224,
+        -112
+      ],
+      "id": "eeb9fd17-43c6-4848-a7ef-21cdc77ff2d4",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "jsCode": "const pages = [];\n\nfor (let i = 1; i <= 10; i++) {\n  pages.push({\n    json: {\n      page: i\n    }\n  });\n}\n\nreturn pages;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2016,
+        -128
+      ],
+      "id": "c6cc8a9d-b317-4bbd-9474-731b2697426e",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "=http://77.42.251.205/LegisltaionSearch.aspx?searchText=&AndOr=AND&optionID=-1&status=-1&classification0&lawNumber=0&lawYear=2025&articleNumber=0&pageNumber={{ $json.page}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1760,
+        -240
+      ],
+      "id": "0b63ba92-bd16-4b2b-b6c1-ef1c43de7e1c",
+      "name": "HTTP Request",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "dataPropertyName": "=data",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "title",
+              "cssSelector": ".extra-wrap h4",
+              "returnArray": true
+            },
+            {
+              "key": "details_link",
+              "cssSelector": ".extra-wrap a[href*=\"Law.aspx\"]",
+              "returnValue": "attribute",
+              "attribute": "href",
+              "returnArray": true
+            },
+            {
+              "key": "law_number",
+              "cssSelector": ".newspaper .date span[id*=\"lblLawNumber\"]",
+              "returnArray": true
+            },
+            {
+              "key": "law_date",
+              "cssSelector": ".newspaper .date span[id*=\"lbldate\"]",
+              "returnArray": true
+            },
+            {
+              "key": "law_type",
+              "cssSelector": ".newspaper .date span[id*=\"lblLawType\"]",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        -1600,
+        -64
+      ],
+      "id": "c6da9fd7-6a0e-4a21-a552-2487afdc4533",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allLaws = [];\nconst baseUrl = \"http://77.42.251.205/\";\n\n// 1. Loop through all 10 pages received from the HTML node\nfor (const item of $input.all()) {\n  const pageData = item.json;\n  \n  // 2. Extract arrays for this specific page\n  const titles = pageData.title || [];\n  const types = pageData.law_type || [];\n  const numbers = pageData.law_number || [];\n  const dates = pageData.law_date || [];\n  const links = pageData.details_link || [];\n\n  // 3. Loop through the laws on this page and add them to our master list\n  for (let i = 0; i < titles.length; i++) {\n    allLaws.push({\n      json: {\n        title: titles[i],\n        law_type: types[i] || \"\",\n        law_number: numbers[i] || \"\",\n        law_date: dates[i] || \"\",\n        details_link: links[i] ? baseUrl + links[i] : \"\"\n      }\n    });\n  }\n}\n\n// 4. Return the complete list of ~200 items\nreturn allLaws;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1488,
+        -320
+      ],
+      "id": "c2f1b8a2-eacb-4102-b2ec-72a0430598da",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.details_link}}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1152,
+        -272
+      ],
+      "id": "4015c17d-e458-43bf-8d5a-76fa3cba81d2",
+      "name": "HTTP Request2",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "content",
+              "cssSelector": "#MainContent_divNotes"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        -944,
+        -304
+      ],
+      "id": "0b43f42c-2328-40f2-bb77-d482d61593a8",
+      "name": "HTML2"
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "table": {
+          "__rl": true,
+          "value": "laws",
+          "mode": "list",
+          "cachedResultName": "laws"
+        },
+        "dataMode": "defineBelow",
+        "columnToMatchOn": "link",
+        "valueToMatchOn": "={{$json.details_link}}",
+        "valuesToSend": {
+          "values": [
+            {
+              "column": "title",
+              "value": "={{$json.title}}"
+            },
+            {
+              "column": "law_type",
+              "value": "={{$json.law_type}}"
+            },
+            {
+              "column": "law_number",
+              "value": "={{$json.law_number}}"
+            },
+            {
+              "column": "law_date",
+              "value": "={{$json.law_date}}"
+            },
+            {
+              "column": "content",
+              "value": "={{$json.content}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        -752,
+        -96
+      ],
+      "id": "8dec6d3b-d49a-4057-89ba-d7a838b682d6",
+      "name": "Insert or update rows in a table",
+      "credentials": {
+        "mySql": {
+          "id": "IEdam0Xh1LXi1ehN",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -816,
+        -528
+      ],
+      "id": "33f0622e-6a07-4457-ae42-e7f6b96d522c",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "HTML2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Insert or update rows in a table": {
+      "main": [
+        []
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Insert or update rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "e1660e4f-8236-43e4-a00e-4d5186752aaa",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fb7b210557d4662dce1899f898a8ee2a308354d204437c8fd5af66ab24cec5a1"
+  },
+  "id": "UE8V3TLRXanMNy7V",
+  "tags": []
+}
