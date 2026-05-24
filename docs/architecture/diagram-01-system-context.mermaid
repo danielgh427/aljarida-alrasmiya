@@ -1,0 +1,34 @@
+flowchart TD
+    subgraph PEOPLE["People"]
+        USER["User<br/>Avocat<br/>Western question"]
+        ADMIN["Admin<br/>Administrateur<br/>systeme"]
+    end
+
+    subgraph CENTRAL["RAG Chatbot"]
+        RAG["Al Jarida Al Rrasmieh<br/>RAG Chatbot<br/>Lebanese Laws & Tenders AI<br/>app/main.py"]:::central
+    end
+
+    subgraph EXT_SYS["External Systems"]
+        WS["n8n<br/>scraping/laws_workflow.json<br/>scraping/tenders_workflow.json"]
+        DB["MySQL<br/>ai_tender_laws<br/>(tables: laws, tenders)"]
+        VDB["ChromaDB Persistent<br/>(data/vector_db/)<br/>HNSW index + SQLite"]
+        LLM["OpenRouter<br/>(openai/gpt-oss-20b:free)"]
+        EMB["Sentence Transformers<br/>(intfloat/multilingual-e5-base)"]
+        LSRC["Government Legal Sources<br/>(77.42.251.205)"]
+        TSRC["Lebanese Tender PPA<br/>(ppa.gov.lb)"]
+    end
+
+    ADMIN -->|"Configure & launch"|WS
+    WS    -->|"HTTP scraping laws"| LSRC
+    WS    -->|"HTTP scraping tenders"|TSRC
+    WS    -->|"INSERT raw data"| DB
+    DB    -->|"FETCH all records"|EMB
+    EMB   -->|"UPSERT embeddings"|VDB
+    USER  -->|"ask question via HTTP /ask"|RAG
+    RAG   -->|"hybrid fallback: keyword_bonus / extract_date_score"|DB
+    RAG   -->|"semantic search (top-k HNSW)"|VDB
+    RAG   -->|"generate answer: build_prompt + OpenRouter"|LLM
+    ADMIN -->|"manage index /manage endpoints"|RAG
+
+    classDef central fill:#059669,color:#fff,stroke:#047857,stroke-width:3px
+    class RAG central

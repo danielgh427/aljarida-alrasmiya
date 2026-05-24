@@ -1,0 +1,100 @@
+flowchart TD
+    subgraph EXT["External Sources and Scraping"]
+        LWS["laws_workflow.json<br>scraping/ n8n HTTP scrape to 77.42.251.205"]
+        TWS["tenders_workflow.json<br>scraping/ n8n HTTP scrape to ppa.gov.lb"]
+        LGOV["77.42.251.205<br>Legal Laws Source"]
+        PGOV["ppa.gov.lb<br>Tender PPA Source"]
+    end
+
+    subgraph INGEST["Ingestion & ETL Layer"]
+        DIR1["fetch_laws.py<br>services/embeddings/fetch_laws.py<br>SELECT * FROM laws"]
+        DIR2["fetch_tenders.py<br>services/embeddings/fetch_tenders.py<br>SELECT * FROM tenders"]
+        GEN["rag_engine.py<br>services/embeddings/rag_engine.py<br>SentenceTransformer intfloat/multilingual-e5-base<br>'passage: ' prefix + normalize"]
+        VST["vector_store.py<br>services/embeddings/vector_store.py<br>store_vectors() - ChromaDB upsert + HNSW rebuild"]
+    end
+
+    subgraph STORAGE["Persistent Storage Layer"]
+        MYSQL["MySQL ai_tender_laws<br>laws: id  link  title  law_number<br>         law_type  law_date  content  scraped_at<br>tenders: id  link  title  summary<br>          deadline  price  location  created_at"]
+        CHROMA["ChromaDB Persistent<br>data/vector_db/<br>HNSW Lucene Index<br>SQLite meta + 768-dim embeddings"]
+    end
+
+    subgraph FASTAPI["FastAPI Application Layer (app/main.py)"]
+        HLTH["GET /health"]
+        ASK["POST /ask<br>QuestionRequest Pydantic"]
+        CAT["RagPipeline<br>category detection<br>law | tender | all"]
+        VAG["is_vague_question()<br>guardrail reject"]
+        FUQ["is_followup_question()<br>chat history detection"]
+        CONF["check_confidence_threshold<br>min similarity 40%"]
+        BONUS["keyword_bonus + extract_date_score<br>re-rank MySQL fallback results"]
+        RAG["build_prompt()<br>RAG context assembly"]
+        LLM_A["OpenRouter gpt-oss-20b:free<br>chat.completions.create()"]
+        ASKR["AskResponse<br>answer + sources + detected_category"]
+
+        ASK --> CAT
+        CAT --> VAG
+        VAG --> FUQ
+        FUQ --> CONF
+        CONF --> BONUS
+        BONUS --> RAG
+        RAG --> LLM_A
+        LLM_A --> ASKR
+    end
+
+    subgraph CORS_MW["CORS / Middleware"]
+        CMW["allow_origins = [*]<br>no auth middleware"]
+    end
+
+    subgraph FRONTEND["Frontend Layer (frontend/)"]
+        HTML["index.html<br>SPA Arabic RTL<br>chat UI + source panel"]
+        JS["chatbot.js<br>fetch POST /ask + GET /health<br>render sources + messages"]
+        CSS["styles.css<br>modern blue theme<br>responsive RTL layout"]
+        HTML --> JS
+        JS --> CSS
+    end
+
+    subgraph CONFIG["Configuration Layer"]
+        ENV[".env - OPENROUTER_API_KEY"]
+        CFG["config.py - DB creds + VECTOR_DB_PATH"]
+        REQ["requirements.txt"]
+    end
+
+    LGOV      --> LWS
+    PGOV      --> TWS
+    LWS       --> MYSQL
+    TWS       --> MYSQL
+
+    MYSQL     --> DIR1
+    MYSQL     --> DIR2
+    DIR1      --> GEN
+    DIR2      --> GEN
+    GEN       --> VST
+    VST       --> CHROMA
+
+    CAT   -.->|semantic search top-k| CHROMA
+    BONUS -.->|keyword_bonus / date fallback| MYSQL
+
+    CMW      --> FASTAPI
+    JS       -->|POST /ask| ASK
+    JS       -->|GET /health| HLTH
+
+    CFG      --> INGEST
+    CFG      --> FASTAPI
+    ENV      -->|api_key| LLM_A
+    REQ      --> INGEST
+    REQ      --> FASTAPI
+
+    classDef ext     fill:#374151,color:#fff,stroke:#1f2937,stroke-width:2px
+    classDef ingest  fill:#2563eb,color:#fff,stroke:#1d4ed8,stroke-width:2px
+    classDef embed   fill:#7c3aed,color:#fff,stroke:#6d28d9,stroke-width:2px
+    classDef apiX    fill:#059669,color:#fff,stroke:#047857,stroke-width:2px
+    classDef dbX     fill:#d97706,color:#fff,stroke:#b45309,stroke-width:2px
+    classDef fe      fill:#2563eb,color:#fff,stroke:#1d4ed8,stroke-width:2px
+    classDef cfg     fill:#6b7280,color:#fff,stroke:#4b5563,stroke-width:2px
+    classDef corsx   fill:#ef4444,color:#fff,stroke:#dc2626,stroke-width:2px
+
+    class EXT,LWS,TWS,LGOV,PGOV ext
+    class INGEST,DIR1,DIR2 ingest
+    class GEN,VST embed
+    class FASTAPI,HLTH,ASK,CAT,VAG,FUQ,CONF,BONUS,RAG,LLM_A,ASKR apiX
+    class MYSQL,CHROMA dbX
+    class FRONTEND,HTML,JS,CSS fe

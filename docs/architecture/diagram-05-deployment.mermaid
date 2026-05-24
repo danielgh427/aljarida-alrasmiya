@@ -1,0 +1,44 @@
+flowchart TD
+    subgraph ClientBox["Client Tier"]
+        BROWSER["Browser HTML, CSS, JS<br/>frontend/<br/>index.html + chatbot.js + styles.css"]
+    end
+
+    subgraph HostBox["Host Machine - Windows localhost"]
+        subgraph Port8000["Port :8000 - Uvicorn ASGI Server"]
+            APP["FastAPI app<br/>app/main.py<br/>scripts/server.py entry-point<br/>uvicorn default workers<br/>OpenAI-compatible POST /v1/chat/completions"]
+        end
+        subgraph Port3306["Port :3306 - MySQL 8.x TCP"]
+            DB["MySQL ai_tender_laws<br/>ENGINE=InnoDB<br/>CHARSET=utf8mb4<br/>COLLATE=utf8mb4_unicode_ci"]
+        end
+        subgraph VenvDir[".venv/ Python 3.13"]
+            DEPS["fastapi uvicorn<br/>chromadb torch<br/>sentence-transformers<br/>mysql-connector-python<br/>openai pydantic"]
+        end
+        subgraph N8N_Service["n8n Service - async, no fixed port"]
+            DW["scraping/laws_workflow.json<br/>scraping/tenders_workflow.json<br/>HTTP poll and webhook trigger"]
+        end
+    end
+
+    subgraph Cloud["OpenRouter Cloud - HTTPS"]
+        LLM["openai-gpt-oss-20b-free<br/>REST API over HTTPS"]
+    end
+
+    BROWSER  -->|"POST /ask and GET /health"| Port8000
+    Port8000 -->|"SELECT and INSERT"| Port3306
+    Port8000 -->|"OpenAI-compatible POST /v1/chat/completions"| Cloud
+    DW       -->|"INSERT"| Port3306
+    DW       -->|"re-scrape"| Port3306
+    VenvDir --- Port8000
+
+    classDef client fill:#2563eb,color:#fff,stroke:#1d4ed8
+    classDef app    fill:#059669,color:#fff,stroke:#047857
+    classDef db     fill:#d97706,color:#fff,stroke:#b45309
+    classDef tool   fill:#7c3aed,color:#fff,stroke:#6d28d9
+    classDef n8n1   fill:#374151,color:#fff,stroke:#1f2937
+    classDef cloud  fill:#ef4444,color:#fff,stroke:#dc2626
+
+    class BROWSER client
+    class APP app
+    class DB db
+    class DEPS tool
+    class N8N_Service n8n1
+    class LLM cloud

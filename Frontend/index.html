@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Al Jarida Al Rrasmieh - Lebanese Laws & Tenders AI</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Al Jarida Al Rrasmieh</h1>
+      <p>Lebanese Laws & Tenders — RAG Chatbot</p>
+    </header>
+
+    <main>
+      <div id="chat-container">
+        <div id="messages"></div>
+        <div id="sources-panel" class="hidden"></div>
+      </div>
+
+      <div id="input-area">
+        <form id="chat-form">
+          <input
+            type="text"
+            id="user-input"
+            placeholder="اسأل عن قوانين أو مناقصات لبنانية..."
+            autocomplete="off"
+          />
+          <button type="submit" id="send-btn">إرسال</button>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script src="chatbot.js"></script>
+</body>
+</html>
