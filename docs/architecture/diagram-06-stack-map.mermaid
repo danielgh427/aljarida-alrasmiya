@@ -1,0 +1,29 @@
+flowchart TD
+    root_["Al Jarida Al Rrasmieh<br/>RAG Chatbot"]
+
+    root_ --> L1["Layer 1 - Frontend"]
+    L1 --> L1a["Browser SPA<br/>frontend/index.html Arabic RTL<br/>chatbot.js chat_logic<br/>styles.css modern_blue_theme"]
+    L1 --> L1b["REST Client<br/>fetch POST /ask<br/>fetch GET /health"]
+
+    root_ --> L2["Layer 2 - API Gateway"]
+    L2 --> L2a["FastAPI app/main.py<br/>pydantic QuestionRequest<br/>route_handlers<br/>GET /health POST /ask"]
+    L2 --> L2b["CORS Middleware<br/>allow_origins_WILDCARD<br/>NO_AUTH"]
+    L2 --> L2c["scripts/server.py<br/>uvicorn entry-point"]
+
+    root_ --> L3["Layer 3 - RAG Pipeline"]
+    L3 --> L3a["RagPipeline.ask() — app/services/rag_pipeline.py<br/>ChromaDB semantic HNSW<br/>MySQL keyword_bonus fallback"]
+    L3 --> L3b["ReRank helpers — app/services/helpers.py<br/>keyword_bonus<br/>extract_date_score<br/>check_confidence_threshold min 40%"]
+    L3 --> L3c["Guardrails — helpers.py<br/>is_vague_question reject ambiguous<br/>is_followup_question chat_history"]
+    L3 --> L3d["build_prompt() helpers.py<br/>OpenRouter LLM caller<br/>rag_pipeline.py ask() response assembly"]
+
+    root_ --> L4["Layer 4 - Embeddings Engine"]
+    L4 --> L4a["Sentence Transformers<br/>model intfloat_multilingual_e5_base<br/>vector_dim 768<br/>normalize_L2<br/>services/embeddings/rag_engine.py"]
+    L4 --> L4b["ChromaDB Persistent<br/>collection rag_collection<br/>HNSW_index L2_metric<br/>services/embeddings/vector_store.py"]
+
+    root_ --> L5["Layer 5 - Storage Tier"]
+    L5 --> L5a["MySQL ai_tender_laws<br/>table laws<br/>table tenders<br/>app/database/db_connection.py"]
+    L5 --> L5b["ChromaDB File<br/>chroma.sqlite3<br/>hnsw_bin_files<br/>index_metadata.pickle"]
+
+    root_ --> EXT["External Services"]
+    EXT --> EXT1["OpenRouter API<br/>model gpt_oss_20b_free<br/>endpoint v1_chat_completions<br/>key .env OPENROUTER_API_KEY"]
+    EXT --> EXT2["N8N Scraping<br/>scraping/laws_workflow.json<br/>scraping/tenders_workflow.json<br/>output MySQL INSERT"]

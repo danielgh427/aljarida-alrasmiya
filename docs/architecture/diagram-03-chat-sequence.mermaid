@@ -1,0 +1,66 @@
+sequenceDiagram
+    actor U as User "Avocate / Administrateur"
+
+    box Browser Layer
+        participant H as index.html "RTL SPA"
+        participant J as chatbot.js "fetch + render"
+    end
+
+    box CORS
+        participant C as CORS Wildcard "no Auth check"
+    end
+
+    box FastAPI App (app/main.py)
+        participant R as POST /ask "RAG Entry Point"
+        participant P as QuestionRequest "Pydantic validation"
+        participant V as is_vague_question() "Guardrail reject"
+        participant FQ as is_followup_question() "Chat history check"
+        participant RP as RagPipeline.ask() "orchestration in rag_pipeline.py"
+        participant CE as ChromaDB "HNSW Semantic Search top-k 8"
+        participant MQ as MySQL "keyword_bonus + extract_date_score fallback rescoring"
+        participant BP as build_prompt() "helpers.py - RAG context assembly"
+        participant L as OpenRouter "gpt-oss-20b:free"
+    end
+
+    box Data Layer
+        participant CH as ChromaDB "(data/vector_db/)"
+        participant MY as MySQL "ai_tender_laws"
+    end
+
+    U  ->> H  : Types question (Arabic)
+    H  ->> J  : onSend(input)
+    J  ->> C  : POST /ask {question, category, chat_history}
+    C  ->> R  : Forward / CORS pass
+    R  ->> P  : validate QuestionRequest
+    P  ->> V  : check vague
+
+    alt Vague question
+        V  -->> U  : "Your question is unclear"
+    else Valid question
+        V  ->> FQ : check history (follow-up)
+
+        alt Follow-up detected
+            FQ ->> BP  : inject previous_sources + chat_history
+        else New question
+            FQ ->> RP : full pipeline
+            RP  ->> CE  : generate e5-base emb, semantic search top-8
+            CE   ->> CH : query laws + tenders n_results=8
+            CH  -->> CE : {ids, distances, metadatas}
+            CE  -->> RP : raw semantic hits
+
+            par Hybrid rescoring
+                RP ->> MQ  : keyword_bonus() + extract_date_score()
+                MQ ->> MY  : SELECT laws | tenders WHERE title/content LIKE ?
+                MY -->> MQ  : MySQL rows
+                MQ -->> RP  : scored candidates
+            end
+
+            RP  ->> BP  : top-N ranked sources with similarity scores
+        end
+
+        BP  ->> L   : system prompt + context + chat history
+        L  -->  BP  : streamed / one-shot answer
+        BP  -->> J  : {answer, sources[], detected_category}
+        J   ->> H   : render answer + source cards
+        H   -->> U  : Law source card / Tender card
+    end

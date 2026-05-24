@@ -1,0 +1,71 @@
+flowchart LR
+    subgraph N8N["n8n Workflows (scraping/)"]
+        W1["laws_workflow.json <br> scrape to 77.42.251.205"]
+        W2["tenders_workflow.json <br> scrape to ppa.gov.lb <br> BeautifulSoup4 parser"]
+    end
+
+    subgraph RAW["Raw Scraped Data"]
+        D1["laws JSON payloads <br> id | title | law_number <br> law_type | law_date <br> content | link"]
+        D2["tenders JSON payloads <br> id | title | summary <br> deadline | price <br> location | link"]
+    end
+
+    subgraph MYSQL_DB["MySQL ai_tender_laws (InnoDB utf8mb4)"]
+        T1["laws <br> PK: id | UK: link"]
+        T2["tenders <br> PK: id | UK: link"]
+    end
+
+    subgraph TRANSFORM["Embeddings Transformation Layer"]
+        F1["fetch_laws.py <br> services/embeddings/fetch_laws.py <br> SELECT * FROM laws"]
+        F2["fetch_tenders.py <br> services/embeddings/fetch_tenders.py <br> SELECT * FROM tenders"]
+        AGGR["unified schemas <br> laws_docs + tenders_docs <br> cleaning + concatenation"]
+        GEN["rag_engine.py <br> services/embeddings/rag_engine.py <br> SentenceTransformer intfloat/multilingual-e5-base <br> 'passage: ' prefix + normalize L2"]
+    end
+
+    subgraph CHROMA_DB["ChromaDB Persistent Client"]
+        C1["Collection: laws_embeddings <br> embedding 768-dim <br> source_type | title | law_number <br> law_type | law_date | link"]
+        C2["Collection: tenders_embeddings <br> embedding 768-dim <br> source_type | title | summary <br> document_location | deadline <br> final_submission_deadline | link"]
+        IDX["HNSW Index <br> L2 metric <br> ef_search=14 | ef_construction=80 | M=16"]
+    end
+
+    subgraph IDX_FILES["Index Files (data/vector_db/)"]
+        FN1["index_metadata.pickle"]
+        FN2["data_level0.bin"]
+        FN3["header.bin"]
+        FN4["length.bin"]
+        FN5["link_lists.bin"]
+    end
+
+    %% Annotations / Notes replaced with Flowchart-compatible styling
+    N8N_NOTE(["📝 n8n workflows <br> monitored by admin"])
+    GEN_NOTE(["⚙️ IMPLEMENTED <br> Regen via: python -m services.embeddings.vector_store"])
+
+    %% Data Flow Connections
+    W1 --> D1
+    W2 --> D2
+    D1 -->|INSERT| T1
+    D2 -->|INSERT| T2
+
+    T1 -->|SELECT *| F1
+    T2 -->|SELECT *| F2
+    F1 --> AGGR
+    F2 --> AGGR
+    AGGR --> GEN
+    GEN --> C1
+    GEN --> C2
+
+    C1 --> IDX
+    C2 --> IDX
+    IDX --> FN1
+    IDX --> FN2
+    IDX --> FN3
+    IDX --> FN4
+    IDX --> FN5
+
+    %% Pinned Annotations
+    W1 -.-> N8N_NOTE
+    GEN -.-> GEN_NOTE
+    IDX -.-> GEN_NOTE
+    
+    %% Styling notes distinctively
+    style N8N_NOTE fill:#fff9c4,stroke:#fbc02d,stroke-width:1px,stroke-dasharray: 3 3;
+    style GEN_NOTE fill:#fff9c4,stroke:#fbc02d,stroke-width:1px,stroke-dasharray: 3 3;
