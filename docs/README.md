@@ -80,7 +80,7 @@ project/
 │   ├── server.py                     # Startup wrapper — runs uvicorn + log banner
 │   └── start_server.bat              # Windows launcher (double-click)
 │
-├── frontend/
+├── Frontend/
 │   ├── index.html                    # Chat UI (Arabic-first, RTL)
 │   ├── chatbot.js                    # Frontend logic — fetches /ask, shows sources
 │   └── styles.css                    # Styling
