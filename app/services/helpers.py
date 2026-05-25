@@ -20,7 +20,7 @@ def extract_number(question: str) -> Optional[str]:
 
 def is_latest_question(question: str) -> bool:
     """``True`` when the question asks for the most-recent law / decree."""
-    latest_words = ["آخر", "احدث", "أحدث", "latest", "newest", "recent"]
+    latest_words = ["آخر", "احدث", "أحدث", "الأخير", "latest", "newest", "recent"]
     return any(w in question.lower() for w in latest_words)
 
 
@@ -130,7 +130,7 @@ def is_vague_question(question: str) -> bool:
 
 def check_confidence_threshold(
     sources: List[Dict[str, Any]],
-    threshold: float = 40.0,
+    threshold: float = 30.0,
 ) -> bool:
     """``True`` when the best source meets the minimum similarity score."""
     if not sources:

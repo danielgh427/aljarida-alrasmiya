@@ -18,10 +18,12 @@ _ROOT  = os.path.dirname(os.path.dirname(_HERE))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+import logging
+
 import chromadb
 from config import VECTOR_DB_PATH
 
-from rag_engine import generate_all_embeddings
+from services.embeddings.rag_engine import generate_all_embeddings
 
 
 logger = __import__("logging").getLogger(__name__)

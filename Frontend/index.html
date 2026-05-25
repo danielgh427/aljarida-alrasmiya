@@ -1,38 +1,143 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Al Jarida Al Rrasmieh - Lebanese Laws & Tenders AI</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Al Jarida AI - تفاعل ذكي مع القوانين والمناقصات</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <div id="app">
-    <header>
-      <h1>Al Jarida Al Rrasmieh</h1>
-      <p>Lebanese Laws & Tenders — RAG Chatbot</p>
-    </header>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-balance-scale"></i>
+                    <h2>Al Jarida AI</h2>
+                </div>
+                <p class="tagline">محادثة ذكية مع القوانين والمناقصات اللبنانية</p>
+            </div>
+            
+            <div class="categories">
+                <h3>الفئات</h3>
+                <button class="category-btn active" data-category="all">
+                    <i class="fas fa-layer-group"></i>
+                    جميع المستندات
+                </button>
+                <button class="category-btn" data-category="law">
+                    <i class="fas fa-gavel"></i>
+                    القوانين
+                </button>
+                <button class="category-btn" data-category="tender">
+                    <i class="fas fa-file-contract"></i>
+                    المناقصات
+                </button>
+            </div>
+            
+            <div class="language-toggle">
+                <button id="lang-ar" class="active">العربية</button>
+                <button id="lang-en">English</button>
+            </div>
+            
+            <div class="sidebar-footer">
+                <button class="export-btn" id="export-chat">
+                    <i class="fas fa-download"></i>
+                    تصدير المحادثة
+                </button>
+                <button class="clear-btn" id="clear-chat">
+                    <i class="fas fa-trash"></i>
+                    مسح المحادثة
+                </button>
+            </div>
+        </aside>
 
-    <main>
-      <div id="chat-container">
-        <div id="messages"></div>
-        <div id="sources-panel" class="hidden"></div>
-      </div>
+        <!-- Main Chat Area -->
+        <main class="chat-main">
+            <!-- Header -->
+            <header class="chat-header">
+                <div class="header-info">
+                    <h1 id="chat-title">المحادثة الجديدة</h1>
+                    <div class="typing-indicator" id="typing-indicator">
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <span>جارٍ الكتابة...</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" id="toggle-sidebar">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                </div>
+            </header>
 
-      <div id="input-area">
-        <form id="chat-form">
-          <input
-            type="text"
-            id="user-input"
-            placeholder="اسأل عن قوانين أو مناقصات لبنانية..."
-            autocomplete="off"
-          />
-          <button type="submit" id="send-btn">إرسال</button>
-        </form>
-      </div>
-    </main>
-  </div>
+            <!-- Messages Container -->
+            <div class="messages-container" id="messages-container">
+                <!-- Welcome Message -->
+                <div class="welcome-message">
+                    <div class="welcome-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h2>مرحباً بك في Al Jarida AI</h2>
+                    <p>اسأل أي سؤال حول القوانين والمناقصات اللبنانية</p>
+                    <div class="suggestions">
+                        <button class="suggestion-btn" data-query="ما هي آخر القوانين الصادرة؟">
+                            <i class="fas fa-lightbulb"></i>
+                            آخر القوانين
+                        </button>
+                        <button class="suggestion-btn" data-query="المناقصات الصحية المتاحة">
+                            <i class="fas fa-lightbulb"></i>
+                            المناقصات الصحية
+                        </button>
+                        <button class="suggestion-btn" data-query="قوانين البناء في لبنان">
+                            <i class="fas fa-lightbulb"></i>
+                            قوانين البناء
+                        </button>
+                        <button class="suggestion-btn" data-query="مناقصات البناء والتشييد">
+                            <i class="fas fa-lightbulb"></i>
+                            مناقصات البناء
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-  <script src="chatbot.js"></script>
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <input type="text" id="user-input" placeholder="اكتب سؤالك هنا..." autocomplete="off">
+                        <button class="attach-btn" id="attach-btn">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                    </div>
+                    <button class="send-btn" id="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="input-hints">
+                    <span>اضغط Enter للإرسال</span>
+                    <span>|</span>
+                    <span>supports Arabic & English</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- Source Preview Panel -->
+        <aside class="source-panel" id="source-panel">
+            <div class="panel-header">
+                <h3>المصادر</h3>
+                <button class="close-panel" id="close-panel">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="sources-list" id="sources-list">
+                <!-- Sources will be loaded here -->
+            </div>
+        </aside>
+    </div>
+
+    <script src="chatbot.js"></script>
 </body>
 </html>
