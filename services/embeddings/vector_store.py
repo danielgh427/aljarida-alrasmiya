@@ -9,6 +9,10 @@ touched inside ``store_vectors()`` (triggered by the ``__main__`` guard).
 from __future__ import annotations
 import sys
 import os
+import logging
+import chromadb
+from config import VECTOR_DB_PATH
+from services.embeddings.rag_engine import generate_all_embeddings
 
 # Project root on sys.path (needed when run as ``python vector_store.py``
 # from the repo root instead of ``python -m …``)
@@ -17,10 +21,7 @@ _ROOT = os.path.dirname(os.path.dirname(_HERE))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-import logging
-import chromadb
-from config import VECTOR_DB_PATH
-from services.embeddings.rag_engine import generate_all_embeddings
+
 
 
 logger = __import__("logging").getLogger(__name__)
