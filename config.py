@@ -1,9 +1,11 @@
+import os
+
 DB_HOST = "localhost"
 DB_USER = "root"
 DB_PASSWORD = ""
 DB_NAME = "ai_tender_laws"
 
-import os
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
