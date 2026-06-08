@@ -10,19 +10,17 @@ from __future__ import annotations
 
 import sys
 import os
+from sentence_transformers import SentenceTransformer
+from openai import OpenAI
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+import chromadb
 
 from dotenv import load_dotenv
 load_dotenv()
 
 os.environ["HF_HUB_DISABLE_SYMLINKS"] = "1"
-
-import uvicorn
-import chromadb
-import mysql.connector
-from sentence_transformers import SentenceTransformer
-from openai import OpenAI
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 # ── Project root on sys.path (so bare `from config import …` keeps working) ─
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
