@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
 """
-Startup script — Lebanese Laws & Tenders RAG System
-Re-exported from scripts/ for convenience (invoked by start_server.bat).
-
-Run directly:  python scripts/server.py
-"""
-import sys
-import os
-import uvicorn
-
-# Resolve imports when executed from scripts/ or project root
-#!/usr/bin/env python3
-"""
 Database initialization script.
 
 Connects to MySQL using credentials from config.py and executes schema.sql
@@ -22,6 +10,7 @@ from __future__ import annotations
 import os
 import sys
 import mysql.connector
+import uvicorn
 
 # Add project root to sys.path
 _HERE = os.path.dirname(os.path.abspath(__file__))
