@@ -307,7 +307,7 @@ class RagPipeline:
         return {
             "answer": answer,
             "sources": sources,
-            "detected_category": sources[0]["source_type"] if sources else "law",
+            "detected_category": sources[0].get("source_type", "law") if sources else "law",
         }
 
     def _latest_search(
@@ -325,7 +325,7 @@ class RagPipeline:
         return {
             "answer": answer,
             "sources": sources,
-            "detected_category": sources[0]["source_type"] if sources else "law",
+            "detected_category": sources[0].get("source_type", "law") if sources else "law",
         }
 
     def _hybrid_search(
@@ -457,15 +457,11 @@ class RagPipeline:
             return {
                 "answer": answer,
                 "sources": [],
-                "detected_category": (
-                    sources[0]["source_type"] if sources else request.category or "law"
-                ),
+                "detected_category": (sources[0].get("source_type", request.category or "law") if sources else request.category or "law"),
             }
 
         return {
             "answer": answer,
             "sources": sources if request.include_sources else [],
-            "detected_category": (
-                sources[0]["source_type"] if sources else request.category or "law"
-            ),
+            "detected_category": (sources[0].get("source_type", request.category or "law") if sources else request.category or "law"),
         }
