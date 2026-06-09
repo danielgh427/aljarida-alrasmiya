@@ -10,7 +10,6 @@ from __future__ import annotations
 import os
 import sys
 import mysql.connector
-import uvicorn
 
 # Add project root to sys.path
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -55,20 +54,3 @@ def initialize_database() -> None:
 
 if __name__ == "__main__":
     initialize_database()
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
-
-from app.main import app   # noqa: E402
-
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("Lebanese Laws & Tenders RAG System")
-    print("=" * 60)
-    print("Starting API server...")
-    print("API Documentation : http://localhost:8000/docs")
-    print("Health Check       : http://localhost:8000/health")
-    print("Press Ctrl+C to stop")
-    print("=" * 60)
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
