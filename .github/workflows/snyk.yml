@@ -1,0 +1,42 @@
+name: Snyk Security Test
+
+on:
+  push:
+    branches:
+      - main
+      - ci_cd
+  pull_request:
+    branches: '**'
+
+jobs:
+  snyk:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
+      - name: Snyk Auth
+        uses: snyk/actions/setup@v1
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Run Snyk to check for vulnerabilities
+        run: |
+          snyk test --file=requirements.txt --org=${{ secrets.SNYK_ORG }} || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Run Snyk container test
+        run: |
+          snyk container test python:3.12-slim --file=Dockerfile --org=${{ secrets.SNYK_ORG }} || true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}

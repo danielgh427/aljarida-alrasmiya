@@ -157,7 +157,7 @@ class TestRagPipelineAsk:
                 "law_type": "قانون",
                 "law_date": "2024-01-01",
                 "link": "http://example.com/100",
-            ]],
+            }]],
             "distances": [[0.5]]
         }
 

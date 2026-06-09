@@ -1,7 +1,6 @@
 """Unit tests for helper utilities in app/services/helpers.py."""
 from __future__ import annotations
 
-import pytest
 from datetime import datetime
 
 from app.services.helpers import (
