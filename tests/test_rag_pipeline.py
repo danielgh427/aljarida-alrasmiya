@@ -148,16 +148,21 @@ class TestRagPipelineAsk:
     @pytest.mark.asyncio
     async def test_ask_hybrid_search(self, pipeline, mock_dependencies):
         """Test ask endpoint with hybrid search."""
+        # Ensure the mock return value has correct dictionary and list syntax
         mock_dependencies["collection"].query.return_value = {
             "documents": [["Test law content"]],
-            "metadatas": [[{
-                "source_type": "law",
-                "title": "Hybrid Law",
-                "law_number": "100",
-                "law_type": "قانون",
-                "law_date": "2024-01-01",
-                "link": "http://example.com/100",
-            }]],
+            "metadatas": [
+                [  # List of metadata dictionaries
+                    {
+                        "source_type": "law",
+                        "title": "Hybrid Law",
+                        "law_number": "100",
+                        "law_type": "قانون",
+                        "law_date": "2024-01-01",
+                        "link": "http://example.com/100",
+                    }
+                ]
+            ],
             "distances": [[0.5]]
         }
 
