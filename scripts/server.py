@@ -5,7 +5,11 @@ Re-exported from scripts/ for convenience (invoked by start_server.bat).
 
 Run directly:  python scripts/server.py
 """
-import sys, os
+import sys
+import os
+import uvicorn
+
+from app.main import app 
 
 # Resolve imports when executed from scripts/ or project root
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -13,9 +17,7 @@ _ROOT = os.path.dirname(_HERE)
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-import uvicorn
-
-from app.main import app   # noqa: E402
+  # noqa: E402
 
 
 if __name__ == "__main__":

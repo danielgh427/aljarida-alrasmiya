@@ -446,9 +446,6 @@ class RagPipeline:
                 "detected_category": request.category or "law",
             }
 
-        context = "\n".join(
-            f"SOURCE {i+1}\n{item['content']}" for i, item in enumerate(top)
-        )
         prompt = build_prompt(question, sources, request.chat_history)
         answer = _safe_ai_answer(self.openai_client, prompt, sources)
 

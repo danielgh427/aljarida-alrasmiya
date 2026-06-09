@@ -22,6 +22,7 @@ import chromadb
 from config import VECTOR_DB_PATH
 
 from rag_engine import generate_all_embeddings
+import logging
 
 
 logger = __import__("logging").getLogger(__name__)
