@@ -22,8 +22,6 @@ load_dotenv()
 
 os.environ["HF_HUB_DISABLE_SYMLINKS"] = "1"
 
-
-
 # ── Project root on sys.path (so bare `from config import …` keeps working) ─
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -71,6 +69,16 @@ pipeline = RagPipeline(
 
 # ── Routes ──────────────────────────────────────────────────────────
 
+@app.get("/")
+def root() -> dict[str, str]:
+    """Root endpoint - usage instructions."""
+    return {
+        "message": "Lebanese Laws & Tenders RAG Chatbot",
+        "/health": "GET - Health check",
+        "/ask": "POST - Ask a question (use /docs for Swagger UI)",
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -78,7 +86,14 @@ def health() -> dict[str, str]:
 
 @app.post("/ask")
 async def ask(request: QuestionRequest) -> dict[str, object]:
-    return pipeline.ask(request)
+    """
+    Ask a question about Lebanese laws or tenders.
+
+    The /ask endpoint requires a POST request with JSON body.
+    Access via: POST http://localhost:8000/ask
+    Or use Swagger UI at: http://localhost:8000/docs
+    """
+    return await pipeline.ask(request)
 
 
 # ── Entry-point ─────────────────────────────────────────────────────

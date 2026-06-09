@@ -203,6 +203,7 @@ class RagPipeline:
             and not is_new_exact
             and not is_new_latest
             and is_genuine_fu
+            and not is_vague_question(question)
         )
 
         # ── Multi-turn follow-up ──────────────────────────────────────
@@ -402,6 +403,49 @@ class RagPipeline:
                 lex_score  = 0.45 + date_score * 0.25 + kw_score * 0.30
 
                 candidates.append({"content": content, "meta": meta, "score": lex_score})
+
+        if request.category in ("all", "tender"):
+            try:
+                self.mysql_cursor.execute(
+                    """
+                    SELECT * FROM tenders
+                    WHERE title LIKE %s OR summary LIKE %s
+                    LIMIT 5
+                    """,
+                    (f"%{query_text}%", f"%{query_text}%"),
+                )
+                exact_rows = self.mysql_cursor.fetchall()
+
+                for row in exact_rows:
+                    # We'll assume the tenders table has a 'content' field for the full text, and if not, we use summary.
+                    content = row.get("content", "") or row.get("summary", "") or ""
+                    if not content.strip():
+                        content = f"[تفاصيل غير محفوظة] - {row.get('title', '')}"
+
+                    meta = {
+                        "source_type": "tender",
+                        "title": row.get("title", ""),
+                        "summary": row.get("summary", ""),
+                        "document_location": row.get("document_location", ""),
+                        "final_submission_deadline": row.get("final_submission_deadline", ""),
+                        "link": row.get("link", ""),
+                    }
+                    source_key = (content[:180], meta.get("link", ""), meta.get("title", ""))  # Using title as a fallback for number
+                    if source_key in seen_keys:
+                        continue
+                    seen_keys.add(source_key)
+
+                    # For tenders, we don't have a date field in the same way, so we'll use a fixed date score of 0.5
+                    # Alternatively, we could try to extract a date from the deadline, but we don't have a function for that.
+                    # We'll set date_score to 0.5 as a neutral value.
+                    date_score = 0.5
+                    kw_score   = keyword_bonus(query_text, content)
+                    lex_score  = 0.45 + date_score * 0.25 + kw_score * 0.30
+
+                    candidates.append({"content": content, "meta": meta, "score": lex_score})
+            except Exception:
+                # If the tenders table doesn't exist or any other error, we skip the tender fallback
+                pass
 
         # ── Rank & select ────────────────────────────────────────────
         candidates.sort(key=lambda x: x["score"], reverse=True)

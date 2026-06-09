@@ -113,10 +113,10 @@ def generate_tender_embeddings() -> tuple[list[str], list[list[float]], list[str
         link    = _safe_str(t.get("link"))
 
         passage = (
-            f"Tender Title: {title}\n"
-            f"Description: {summary}\n"
-            f"Location: {loc}\n"
-            f"Deadline: {deadline}"
+            f"عنوان المناقصة: {title}\n"
+            f"الوصف: {summary}\n"
+            f"الموقع: {loc}\n"
+            f"الموعد النهائي: {deadline}"
         )
 
         documents.append(passage)
