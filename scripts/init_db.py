@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import sys
 import mysql.connector
+import time
 
 # Add project root to sys.path
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +25,28 @@ from config import DB_HOST, DB_USER, DB_PASSWORD, DB_NAME # noqa: E402
 def initialize_database() -> None:
     """Connect to MySQL and execute the schema.sql file."""
     print("Attempting to connect to MySQL and initialize database...")
+    print(f"Attempting to connect to MySQL at {DB_HOST}...")
+    
+    # Retry logic to wait for DB to be fully ready
+    conn = None
+    for attempt in range(5):
+        try:
+            conn = mysql.connector.connect(
+                host=DB_HOST,
+                user=DB_USER,
+                password=DB_PASSWORD,
+                database=DB_NAME,
+                connect_timeout=10
+            )
+            break
+        except mysql.connector.Error as err:
+            print(f"Connection attempt {attempt + 1} failed: {err}. Retrying in 5s...")
+            time.sleep(5)
+
+    if not conn:
+        print("Could not connect to MySQL after several attempts.")
+        sys.exit(1)
+
     try:
         conn = mysql.connector.connect(
             host=DB_HOST,
