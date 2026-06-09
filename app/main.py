@@ -92,7 +92,13 @@ async def ask(request: QuestionRequest) -> dict[str, object]:
 
 # This mounts the 'Frontend' folder to the root URL. 
 # Accessing the root domain will now serve index.html.
-app.mount("/", StaticFiles(directory="Frontend", html=True), name="static")
+# ── Static Files (Frontend) ──────────────────────────────────────────
+frontend_dir = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
+    "Frontend"
+)
+
+app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="static")
 
 # ── Entry-point ─────────────────────────────────────────────────────
 
