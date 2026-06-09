@@ -16,6 +16,7 @@ from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -69,15 +70,6 @@ pipeline = RagPipeline(
 
 # ── Routes ──────────────────────────────────────────────────────────
 
-@app.get("/")
-def root() -> dict[str, str]:
-    """Root endpoint - usage instructions."""
-    return {
-        "message": "Lebanese Laws & Tenders RAG Chatbot",
-        "/health": "GET - Health check",
-        "/ask": "POST - Ask a question (use /docs for Swagger UI)",
-    }
-
 
 @app.get("/health")
 def health() -> dict[str, str]:
@@ -95,6 +87,12 @@ async def ask(request: QuestionRequest) -> dict[str, object]:
     """
     return await pipeline.ask(request)
 
+
+# ── Static Files (Frontend) ──────────────────────────────────────────
+
+# This mounts the 'Frontend' folder to the root URL. 
+# Accessing the root domain will now serve index.html.
+app.mount("/", StaticFiles(directory="Frontend", html=True), name="static")
 
 # ── Entry-point ─────────────────────────────────────────────────────
 

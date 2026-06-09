@@ -1,5 +1,5 @@
 // Chatbot JavaScript with semantic features and context memory
-const API_URL = 'http://localhost:8000';
+const API_URL = window.location.origin;
 
 // DOM Elements
 const messagesContainer = document.getElementById('messages-container');
