@@ -27,4 +27,5 @@ if __name__ == "__main__":
     print("Health Check       : http://localhost:8000/health")
     print("Press Ctrl+C to stop")
     print("=" * 60)
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
