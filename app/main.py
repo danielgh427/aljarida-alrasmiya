@@ -83,11 +83,19 @@ async def ask(request: QuestionRequest) -> dict[str, object]:
 
 
 # ── Static Files — MUST BE LAST ──────────────────────────────────────
-frontend_dir = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "Frontend"
-)
-app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+# ── Static Files — MUST BE LAST ──────────────────────────────────────
+frontend_dir = os.path.join(os.getcwd(), "Frontend")
+
+if os.path.exists(frontend_dir):
+    app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+else:
+    @app.get("/")
+    def root():
+        return {
+            "error": "Frontend not found",
+            "looked_in": frontend_dir,
+            "cwd": os.getcwd()
+        }
 
 
 # ── Entry-point ──────────────────────────────────────────────────────
