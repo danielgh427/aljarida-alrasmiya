@@ -10,12 +10,12 @@ from __future__ import annotations
 
 import sys
 import os
+import uvicorn
+import chromadb
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-import chromadb
 
 from dotenv import load_dotenv
 load_dotenv()
