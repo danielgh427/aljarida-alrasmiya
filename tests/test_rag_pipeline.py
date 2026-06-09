@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 from unittest.mock import MagicMock
-from datetime import datetime
+
 
 from app.services.rag_pipeline import RagPipeline, _build_source, _fetch_latest_laws
 from app.schemas.request import QuestionRequest

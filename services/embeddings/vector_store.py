@@ -10,7 +10,11 @@ from __future__ import annotations
 
 import sys
 import os
+import chromadb
+from config import VECTOR_DB_PATH
 
+from rag_engine import generate_all_embeddings
+import logging
 # Project root on sys.path  (needed when run as ``python vector_store.py``
 # from the repo root instead of ``python -m …``)
 _HERE  = os.path.dirname(os.path.abspath(__file__))
@@ -18,11 +22,7 @@ _ROOT  = os.path.dirname(os.path.dirname(_HERE))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-import chromadb
-from config import VECTOR_DB_PATH
 
-from rag_engine import generate_all_embeddings
-import logging
 
 
 logger = __import__("logging").getLogger(__name__)
