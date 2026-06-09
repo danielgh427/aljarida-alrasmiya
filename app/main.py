@@ -10,6 +10,12 @@ from __future__ import annotations
 
 import sys
 import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
+os.environ["HF_HUB_DISABLE_SYMLINKS"] = "1"
+
 import uvicorn
 import chromadb
 from sentence_transformers import SentenceTransformer
@@ -18,22 +24,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from dotenv import load_dotenv
-load_dotenv()
-
-os.environ["HF_HUB_DISABLE_SYMLINKS"] = "1"
-
-# ── Project root on sys.path (so bare `from config import …` keeps working) ─
+# ── Project root on sys.path ─────────────────────────────────────────
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import VECTOR_DB_PATH           # noqa: E402
-from app.schemas.request import QuestionRequest  # noqa: E402
-from app.services.rag_pipeline import RagPipeline  # noqa: E402
-from app.database.db_connection import connect_db   # noqa: E402
+from config import VECTOR_DB_PATH                    # noqa: E402
+from app.schemas.request import QuestionRequest      # noqa: E402
+from app.services.rag_pipeline import RagPipeline    # noqa: E402
+from app.database.db_connection import connect_db    # noqa: E402
 
 
-# ── FastAPI app ─────────────────────────────────────────────────────
-
+# ── FastAPI app ──────────────────────────────────────────────────────
 app = FastAPI(title="Lebanese Law & Tenders Robust RAG")
 
 app.add_middleware(
@@ -44,8 +44,7 @@ app.add_middleware(
 )
 
 
-# ── Warm-start: inject all side-effectful dependencies once ──────────
-
+# ── Warm-start dependencies ──────────────────────────────────────────
 _db_conn    = connect_db()
 _model      = SentenceTransformer("intfloat/multilingual-e5-base")
 _chroma_cli = chromadb.PersistentClient(path=VECTOR_DB_PATH)
@@ -56,21 +55,18 @@ _openai = OpenAI(
     base_url="https://openrouter.ai/api/v1",
 )
 
-# Module-level cursor (single MySQL connection, never re-established)
 _DB_CURSOR = _db_conn.cursor(dictionary=True)
 
 pipeline = RagPipeline(
-    mysql_cursor       = _DB_CURSOR,
-    chroma_model       = _model,
-    chroma_collection  = _collection,
-    openai_client      = _openai,
-    vector_db_path     = VECTOR_DB_PATH,
+    mysql_cursor      = _DB_CURSOR,
+    chroma_model      = _model,
+    chroma_collection = _collection,
+    openai_client     = _openai,
+    vector_db_path    = VECTOR_DB_PATH,
 )
 
 
-# ── Routes ──────────────────────────────────────────────────────────
-
-
+# ── Routes ───────────────────────────────────────────────────────────
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -80,28 +76,21 @@ def health() -> dict[str, str]:
 async def ask(request: QuestionRequest) -> dict[str, object]:
     """
     Ask a question about Lebanese laws or tenders.
-
-    The /ask endpoint requires a POST request with JSON body.
     Access via: POST http://localhost:8000/ask
     Or use Swagger UI at: http://localhost:8000/docs
     """
     return await pipeline.ask(request)
 
 
-# ── Static Files (Frontend) ──────────────────────────────────────────
-
-# This mounts the 'Frontend' folder to the root URL. 
-# Accessing the root domain will now serve index.html.
-# ── Static Files (Frontend) ──────────────────────────────────────────
+# ── Static Files — MUST BE LAST ──────────────────────────────────────
 frontend_dir = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "Frontend"
 )
+app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
-app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="static")
 
-# ── Entry-point ─────────────────────────────────────────────────────
-
+# ── Entry-point ──────────────────────────────────────────────────────
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

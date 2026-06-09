@@ -1,5 +1,5 @@
 // Chatbot JavaScript with semantic features and context memory
-const API_URL = "aljarida-alrasmiya-production.up.railway.app";
+const API_URL = "https://aljarida-alrasmiya-production.up.railway.app";
 
 // DOM Elements
 const messagesContainer = document.getElementById('messages-container');
