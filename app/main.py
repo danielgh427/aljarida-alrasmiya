@@ -50,7 +50,7 @@ except Exception as e:
 
 # Load model (Note: Railway might take 60s to start because of this line)
 logger.info("⏳ Loading Embedding Model...")
-_model = SentenceTransformer("intfloat/multilingual-e5-base")
+_model = SentenceTransformer("intfloat/multilingual-e5-small")
 logger.info("✅ Model Loaded")
 
 _chroma_cli = chromadb.PersistentClient(path=VECTOR_DB_PATH)
