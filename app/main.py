@@ -96,6 +96,19 @@ else:
             "looked_in": frontend_dir,
             "cwd": os.getcwd()
         }
+        
+@app.get("/debug")
+def debug():
+    frontend_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "Frontend"
+    )
+    return {
+        "frontend_dir": frontend_dir,
+        "exists": os.path.exists(frontend_dir),
+        "cwd": os.getcwd(),
+        "files": os.listdir(frontend_dir) if os.path.exists(frontend_dir) else []
+    }
 
 
 # ── Entry-point ──────────────────────────────────────────────────────
