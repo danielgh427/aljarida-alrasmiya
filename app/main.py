@@ -31,10 +31,11 @@ from app.database.db_connection import connect_db
 app = FastAPI(title="Lebanese Law & Tenders Robust RAG")
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+   CORSMiddleware,
+   allow_origins=["*"], 
+   allow_credentials=True,
+   allow_methods=["*"],  
+   allow_headers=["*"],
 )
 
 # ── Dependencies Initialized once ──
