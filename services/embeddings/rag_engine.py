@@ -17,7 +17,7 @@ from .fetch_tenders import get_tenders
 logger = logging.getLogger(__name__)
 
 # Model name used for *both* law and tender embeddings.
-MODEL_NAME = "intfloat/multilingual-e5-base"
+MODEL_NAME = "intfloat/multilingual-e5-small"
 
 # Prefix required by the E5 model family for *queries* and *documents*.
 E5_PASSAGE_PREFIX = "passage: "

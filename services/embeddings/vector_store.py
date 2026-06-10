@@ -13,6 +13,8 @@ import logging
 import chromadb
 from config import VECTOR_DB_PATH
 from services.embeddings.rag_engine import generate_all_embeddings
+from dotenv import load_dotenv
+load_dotenv() 
 
 # Project root on sys.path (needed when run as ``python vector_store.py``
 # from the repo root instead of ``python -m …``)
