@@ -114,6 +114,35 @@ class TestFetchLatestLaws:
         assert len(sources) == 1
         assert sources[0]["law_number"] == "100"
 
+    def test_fetch_latest_sorted_by_law_date(self):
+        """Test latest laws are ordered by law_date, not scrape date."""
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [
+            {
+                "title": "Older Law",
+                "law_number": "101",
+                "law_type": "قانون",
+                "law_date": "2023-01-01",
+                "link": "http://example.com/101",
+                "content": "Older content",
+                "scraped_at": "2025-01-01",
+            },
+            {
+                "title": "Newer Law",
+                "law_number": "102",
+                "law_type": "قانون",
+                "law_date": "2025-01-01",
+                "link": "http://example.com/102",
+                "content": "Newer content",
+                "scraped_at": "2024-01-01",
+            },
+        ]
+
+        context, sources = _fetch_latest_laws(mock_cursor)
+        assert len(sources) == 2
+        assert sources[0]["law_number"] == "102"
+        assert sources[1]["law_number"] == "101"
+
 
 class TestRagPipelineAsk:
     @pytest.mark.asyncio

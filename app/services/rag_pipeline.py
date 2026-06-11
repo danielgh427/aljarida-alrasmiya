@@ -1,6 +1,7 @@
 """RAG pipeline — orchestrates embedding model, vector DB, MySQL, and LLM."""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import chromadb
@@ -24,13 +25,16 @@ from app.services.helpers import (
 
 def _fetch_latest_laws(cursor: Any) -> tuple[str, List[Dict[str, Any]]]:
     """Return (context, sources) for the 5 most-recent laws."""
-    cursor.execute("SELECT * FROM laws ORDER BY scraped_at DESC LIMIT 5")
+    cursor.execute("SELECT * FROM laws")
     rows = cursor.fetchall()
 
-    rows.sort(
-        key=lambda x: parse_law_date(x.get("law_date")),
-        reverse=True,
-    )
+    def latest_sort_key(row: Dict[str, Any]) -> tuple[datetime, Any]:
+        return (
+            parse_law_date(row.get("law_date")),
+            row.get("scraped_at") or datetime.min,
+        )
+
+    rows.sort(key=latest_sort_key, reverse=True)
     rows = rows[:5]
 
     sources: List[Dict[str, Any]] = []
