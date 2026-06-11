@@ -37,8 +37,8 @@ def _fetch_latest_laws(cursor: Any) -> tuple[str, List[Dict[str, Any]]]:
     def clean_and_parse(date_str):
         if not date_str:
             return datetime.min
-        # Fix: Remove Arabic prefix "تاريخ " and extra spaces to get "DD/MM/YYYY"
-        clean_str = date_str.replace("تاريخ", "").strip()
+        # Fix: Remove Arabic prefix "تاريخ " to get "DD/MM/YYYY" for parsing
+        clean_str = str(date_str).replace("تاريخ", "").strip()
         return parse_law_date(clean_str)
 
     # Sort by parsed date (newest first), then by ID as tie-breaker
@@ -86,7 +86,7 @@ def _build_source(rank: int, meta: Dict[str, Any], content: str, percentage: flo
             "description": meta.get("summary", ""),
             "location": meta.get("document_location", ""),
             "deadline": meta.get("final_submission_deadline", ""),
-            "excerpt": content[:800], # Send chunk to frontend
+            "excerpt": content[:800],
             "percentage": round(percentage, 1),
             "link": meta.get("link", ""),
         }
@@ -130,12 +130,15 @@ class RagPipeline:
         is_latest = is_latest_question(question)
         is_followup = is_followup_question(question)
 
+        sources = []
+        context = ""
+
         # 1. Multi-turn Follow-up Logic
-        # If user says "tell me more" and we have previous results, don't search again
         if is_followup and request.previous_sources and not law_number and not is_latest:
             logger.info("Routing: Multi-turn Follow-up")
             sources = request.previous_sources
-            context = "\n".join([f"Source {s['rank']}: {s.get('excerpt','')}" for s in sources])
+            # Use .get() for dictionary safety
+            context = "\n".join([f"المصدر: {s.get('law_title', s.get('tender_title', ''))}\nالنص: {s.get('excerpt','')}" for s in sources])
         
         # 2. Exact Law Number Search
         elif law_number:
@@ -159,13 +162,12 @@ class RagPipeline:
         return {
             "answer": answer,
             "sources": sources,
-            "detected_category": sources[0]["source_type"] if sources else "law"
+            "detected_category": sources[0].get("source_type", "law") if sources else "law"
         }
 
     # ── Search Strategies ──
 
     def _exact_search(self, question: str, num: str) -> Dict[str, Any]:
-        # Search by number in MySQL
         query = "SELECT * FROM laws WHERE law_number LIKE %s OR title LIKE %s LIMIT 3"
         self.mysql_cursor.execute(query, (f"%{num}%", f"%{num}%"))
         rows = self.mysql_cursor.fetchall()
@@ -176,18 +178,16 @@ class RagPipeline:
         sources = []
         context = ""
         for i, row in enumerate(rows):
-            sources.append(_build_source(i+1, row, row['content'], 100))
-            context += f"قانون رقم {row['law_number']}: {row['title']}\nالمحتوى: {row['content']}\n"
+            sources.append(_build_source(i+1, row, row.get('content', ''), 100))
+            context += f"قانون رقم {row.get('law_number')}: {row.get('title')}\nالمحتوى: {row.get('content')}\n"
 
         prompt = f"استخدم النص التالي للإجابة بدقة عن القانون رقم {num}:\n{context}\nالسؤال: {question}"
         answer = self._call_llm(prompt, sources)
         return {"answer": answer, "sources": sources, "detected_category": "law"}
 
     def _hybrid_search(self, question: str, request: QuestionRequest) -> Dict[str, Any]:
-        # Semantic query in ChromaDB
         query_vec = self.chroma_model.encode("query: " + question).tolist()
         
-        # Apply category filter if selected in UI
         where_filter = {"source_type": request.category} if request.category in ["law", "tender"] else None
         
         results = self.chroma_collection.query(
@@ -212,12 +212,13 @@ class RagPipeline:
 
         prompt = self._build_final_prompt(question, context, request.chat_history)
         answer = self._call_llm(prompt, sources)
-        return {"answer": answer, "sources": sources, "detected_category": sources[0]["source_type"]}
+        return {"answer": answer, "sources": sources, "detected_category": sources[0].get("source_type", "law")}
 
     # ── LLM Utilities ──
 
-    def _build_final_prompt(self, question: str, context: str, history: List[Any]) -> str:
-        history_str = "\n".join([f"{m.role}: {m.content}" for m in history[-4:]])
+    def _build_final_prompt(self, question: str, context: str, history: List[Dict[str, Any]]) -> str:
+        # Fix: Use .get() to access dictionary keys safely
+        history_str = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in history[-4:]])
         return f"""
 أنت مساعد خبير في القوانين والمناقصات اللبنانية. 
 أجب بناءً على المصادر المقدمة فقط. تجاهل المقدمات الروتينية مثل "بناءً على الدستور" إلا إذا كانت هي صلب السؤال.
@@ -234,9 +235,9 @@ class RagPipeline:
     def _call_llm(self, prompt: str, sources: List[Dict[str, Any]]) -> str:
         try:
             response = self.openai_client.chat.completions.create(
-                model="openai/gpt-3.5-turbo", # Recommended for speed/cost on Railway
+                model="openai/gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.1 # Low temperature for factual accuracy
+                temperature=0.1 
             )
             return response.choices[0].message.content
         except Exception as e:
