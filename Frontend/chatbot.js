@@ -40,6 +40,11 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.classList.add('active');
             currentCategory = btn.dataset.category;
             updateChatTitle();
+
+            // Hide sidebar on mobile once a category is selected
+            if (window.innerWidth <= 768) {
+                document.querySelector('.sidebar').classList.add('hidden');
+            }
         });
     });
 

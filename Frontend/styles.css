@@ -25,13 +25,18 @@
 body {
     font-family: 'Cairo', sans-serif;
     background: var(--bg-light);
-    height: 100vh;
+    min-height: 100vh;
     overflow: hidden;
+}
+
+html,
+body {
+    min-height: 100vh;
 }
 
 .app-container {
     display: flex;
-    height: 100vh;
+    min-height: 100vh;
 }
 
 /* Sidebar Styles */
@@ -151,7 +156,8 @@ body {
     gap: 10px;
 }
 
-.export-btn, .clear-btn {
+.export-btn,
+.clear-btn {
     width: 100%;
     padding: 10px;
     background: transparent;
@@ -220,12 +226,25 @@ body {
     animation: typing 1.4s infinite ease-in-out;
 }
 
-.typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
+.typing-indicator .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.typing-indicator .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
 
 @keyframes typing {
-    0%, 60%, 100% { transform: translateY(0); }
-    30% { transform: translateY(-5px); }
+
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+    }
+
+    30% {
+        transform: translateY(-5px);
+    }
 }
 
 .header-actions .icon-btn {
@@ -598,7 +617,7 @@ body {
         height: 100%;
         z-index: 100;
     }
-    
+
     .source-panel {
         position: absolute;
         right: 0;
@@ -611,18 +630,93 @@ body {
 @media (max-width: 768px) {
     .sidebar {
         width: 100%;
+        max-width: 100%;
     }
-    
+
     .source-panel {
         width: 100%;
+        max-width: 100%;
+        height: 100%;
     }
-    
+
+    .chat-header,
+    .sidebar-header,
+    .panel-header,
+    .input-area,
+    .categories,
+    .sidebar-footer {
+        padding: 15px;
+    }
+
+    .header-info h1 {
+        font-size: 16px;
+    }
+
+    .messages-container {
+        padding: 16px 12px 12px;
+    }
+
     .message {
-        max-width: 95%;
+        max-width: 100%;
     }
-    
+
     .suggestions {
         flex-direction: column;
+        align-items: stretch;
+    }
+
+    .suggestion-btn,
+    .category-btn,
+    .language-toggle button,
+    .export-btn,
+    .clear-btn {
+        font-size: 13px;
+    }
+
+    .input-container {
+        flex-direction: column;
+    }
+
+    .input-wrapper {
+        width: 100%;
+    }
+
+    .send-btn {
+        width: 100%;
+        height: 48px;
+        border-radius: 14px;
+    }
+
+    .input-hints {
+        font-size: 12px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .chat-header,
+    .input-area,
+    .sidebar-header,
+    .panel-header {
+        padding: 12px;
+    }
+
+    .header-info h1 {
+        font-size: 14px;
+    }
+
+    .message-content {
+        font-size: 13px;
+    }
+
+    .welcome-message {
+        padding: 40px 15px;
+    }
+
+    .suggestion-btn {
+        padding: 12px;
     }
 }
 
@@ -644,7 +738,9 @@ body {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Notification Toast */
@@ -729,6 +825,7 @@ body {
     font-size: 14px;
     line-height: 1.6;
 }
+
 .source-actions {
     display: flex;
     gap: 8px;
@@ -750,6 +847,7 @@ body {
 .modal-link-btn:hover {
     text-decoration: underline !important;
 }
+
 .source-btn-link {
     background: #3b82f6;
     color: white !important;

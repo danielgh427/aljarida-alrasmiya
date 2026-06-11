@@ -24,17 +24,18 @@ from app.services.helpers import (
 
 
 def _fetch_latest_laws(cursor: Any) -> tuple[str, List[Dict[str, Any]]]:
-    """Return (context, sources) for the 5 most-recent laws."""
+    """Return (context, sources) for the 5 most-recent laws by law_date."""
     cursor.execute("SELECT * FROM laws")
     rows = cursor.fetchall()
 
-    def latest_sort_key(row: Dict[str, Any]) -> tuple[datetime, Any]:
-        return (
+    # Sort by parsed law_date (newest first), with scraped_at as tiebreaker
+    rows.sort(
+        key=lambda row: (
             parse_law_date(row.get("law_date")),
             row.get("scraped_at") or datetime.min,
-        )
-
-    rows.sort(key=latest_sort_key, reverse=True)
+        ),
+        reverse=True,
+    )
     rows = rows[:5]
 
     sources: List[Dict[str, Any]] = []
