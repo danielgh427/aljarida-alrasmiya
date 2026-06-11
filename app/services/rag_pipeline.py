@@ -1,6 +1,9 @@
 """RAG pipeline — orchestrates embedding model, vector DB, MySQL, and LLM."""
 from __future__ import annotations
 
+import re
+import logging
+import traceback
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -22,26 +25,33 @@ from app.services.helpers import (
     parse_law_date,
 )
 
+logger = logging.getLogger("AlJarida-Pipeline")
+
+# ── Helper: Fetch Latest Laws with Proper Parsing ───────────────────
 
 def _fetch_latest_laws(cursor: Any) -> tuple[str, List[Dict[str, Any]]]:
-    """Return (context, sources) for the 5 most-recent laws by law_date."""
+    """Return (context, sources) for the 5 most-recent laws by parsing the date string."""
     cursor.execute("SELECT * FROM laws")
     rows = cursor.fetchall()
 
-    # Sort by parsed law_date (newest first), with scraped_at as tiebreaker
+    def clean_and_parse(date_str):
+        if not date_str:
+            return datetime.min
+        # Fix: Remove Arabic prefix "تاريخ " and extra spaces to get "DD/MM/YYYY"
+        clean_str = date_str.replace("تاريخ", "").strip()
+        return parse_law_date(clean_str)
+
+    # Sort by parsed date (newest first), then by ID as tie-breaker
     rows.sort(
-        key=lambda row: (
-            parse_law_date(row.get("law_date")),
-            row.get("scraped_at") or datetime.min,
-        ),
+        key=lambda row: (clean_and_parse(row.get("law_date")), row.get("id", 0)),
         reverse=True,
     )
-    rows = rows[:5]
-
+    
+    top_rows = rows[:5]
     sources: List[Dict[str, Any]] = []
     context_parts: List[str] = []
 
-    for i, row in enumerate(rows):
+    for i, row in enumerate(top_rows):
         meta = {
             "source_type": "law",
             "title": row.get("title", ""),
@@ -51,57 +61,32 @@ def _fetch_latest_laws(cursor: Any) -> tuple[str, List[Dict[str, Any]]]:
             "link": row.get("link", ""),
         }
         content = row.get("content", "") or ""
-        sources.append(_build_source(i + 1, meta, content, 100 - (i * 5)))
+        sources.append(_build_source(i + 1, meta, content, 100 - i))
         context_parts.append(
             f"SOURCE {i+1}\n"
-            f"رقم القانون: {meta['law_number']}\n"
-            f"عنوان القانون: {meta['title']}\n"
-            f"نوع القانون: {meta['law_type']}\n"
-            f"تاريخ القانون: {meta['law_date']}\n\n"
-            f"{content}"
+            f"العنوان: {meta['title']}\n"
+            f"التاريخ: {meta['law_date']}\n"
+            f"المحتوى: {content}\n"
         )
 
     return "\n".join(context_parts), sources
 
 
-_EXACT_SEARCH_PROMPT_TEMPLATE = """أنت مساعد قانوني متخصص تابع لنظام البحث عن القوانين واللوائح.
+# ── Helper: Formatting Sources for Frontend ──────────────────────────
 
-تم العثور على القانون المطلوب بنجاح. إليك المعلومات الكاملة:
-
-{context}
-
-تعليمات صريحة:
-1. يجب عليك الإجابة على أساس المصادر أعلاه فقط
-2. المعلومات موجودة بالفعل في المصادر أعلاه
-3. لا تقل "لا توجد معلومات" - المعلومات موجودة هنا
-4. قدم إجابة شاملة تتضمن: العنوان، الرقم، النوع، التاريخ، والملخص
-
-السؤال: {question}
-
-الإجابة:"""
-
-
-def _build_source(
-    rank: int,
-    meta: Dict[str, Any],
-    content: str,
-    percentage: float,
-) -> Dict[str, Any]:
-    """Transform raw ChromaDB metadata + content into a structured source dict."""
+def _build_source(rank: int, meta: Dict[str, Any], content: str, percentage: float) -> Dict[str, Any]:
+    """Transform raw metadata + content into a structured source dict."""
     source_type = meta.get("source_type", "law")
+    
     if source_type == "tender" or meta.get("summary") or meta.get("document_location"):
-        title = meta.get("title", "")
-        location = meta.get("document_location", "")
-        if location == title:
-            location = ""
         return {
             "rank": rank,
             "source_type": "tender",
-            "tender_title": title,
+            "tender_title": meta.get("title", ""),
             "description": meta.get("summary", ""),
-            "location": location,
+            "location": meta.get("document_location", ""),
             "deadline": meta.get("final_submission_deadline", ""),
-            "excerpt": content,
+            "excerpt": content[:800], # Send chunk to frontend
             "percentage": round(percentage, 1),
             "link": meta.get("link", ""),
         }
@@ -113,57 +98,15 @@ def _build_source(
         "law_number": meta.get("law_number", ""),
         "law_type": meta.get("law_type", ""),
         "law_date": meta.get("law_date", ""),
-        "law_content": content,
-        "excerpt": content,
+        "excerpt": content[:800],
         "percentage": round(percentage, 1),
         "link": meta.get("link", ""),
     }
 
 
-def _safe_ai_answer(
-    openai_client: OpenAI, prompt: str, sources: List[Dict[str, Any]]
-) -> str:
-    """Call OpenRouter LLM; fall back to top source excerpt on failure."""
-    try:
-        ai = openai_client.chat.completions.create(
-            model="openai/gpt-oss-20b:free",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.2,
-        )
-        return ai.choices[0].message.content or ""
-
-    except Exception:
-        return sources[0].get("excerpt", "لا توجد نتائج.") if sources else "لا توجد نتائج."
-
-
-_NO_INFO_PHRASES = [
-    "لا تتوفر",
-    "لا تتوفر في المصادر",
-    "غير مذكور في المصادر",
-    "لا أجد",
-    "لا تحتوي المصادر",
-    "لا توجد معلومات",
-    "عذراً",
-    "لم أتمكن",
-    "لا تتوفر لديّ",
-]
-
+# ── Main Pipeline Class ──────────────────────────────────────────────
 
 class RagPipeline:
-    """Stateless orchestrator — instantiated once at process start-up.
-
-    Static-side dependencies are injected so the same class can be reused
-    in tests by passing mocks.
-    """
-
-    # Mapping: stream-cursor → request shape
-    # Stored on the instance only; declared here for documentation purposes
-    mysql_cursor: mysql.connector.cursor.MySQLCursor
-    chroma_model: Any  # SentenceTransformer
-    chroma_collection: chromadb.collections.Collection
-    openai_client   : OpenAI
-    vector_db_path  : str
-
     def __init__(
         self,
         *,
@@ -173,344 +116,129 @@ class RagPipeline:
         openai_client: OpenAI,
         vector_db_path: str,
     ) -> None:
-        self.mysql_cursor     = mysql_cursor
-        self.chroma_model     = chroma_model
+        self.mysql_cursor = mysql_cursor
+        self.chroma_model = chroma_model
         self.chroma_collection = chroma_collection
-        self.openai_client    = openai_client
-        self.vector_db_path   = vector_db_path
-
-    # ── Public API ──────────────────────────────────────────────────
+        self.openai_client = openai_client
 
     async def ask(self, request: QuestionRequest) -> Dict[str, Any]:
-        """Run the full RAG pipeline and return the structured response."""
+        """Entry point for the question-answering logic."""
         question = request.question.strip()
+        
+        # Decide search strategy
+        law_number = extract_number(question)
+        is_latest = is_latest_question(question)
+        is_followup = is_followup_question(question)
 
-        try:
-            return self._route(question, request)
-        except Exception as exc:
-            return {
-                "answer": str(exc),
-                "sources": [],
-                "detected_category": request.category or "law",
-            }
+        # 1. Multi-turn Follow-up Logic
+        # If user says "tell me more" and we have previous results, don't search again
+        if is_followup and request.previous_sources and not law_number and not is_latest:
+            logger.info("Routing: Multi-turn Follow-up")
+            sources = request.previous_sources
+            context = "\n".join([f"Source {s['rank']}: {s.get('excerpt','')}" for s in sources])
+        
+        # 2. Exact Law Number Search
+        elif law_number:
+            logger.info(f"Routing: Exact Search for {law_number}")
+            return self._exact_search(question, law_number)
 
-    # ── Internal routing ─────────────────────────────────────────────
+        # 3. Chronological "Latest" Search
+        elif is_latest:
+            logger.info("Routing: Latest Laws Search")
+            context, sources = _fetch_latest_laws(self.mysql_cursor)
 
-    def _route(self, question: str, request: QuestionRequest) -> Dict[str, Any]:
-        law_number  = extract_number(question)
-        is_new_exact  = law_number is not None
-        is_new_latest = is_latest_question(question)
-        is_genuine_fu  = is_followup_question(question)
-
-        should_reuse = (
-            request.chat_history
-            and request.previous_sources
-            and not is_new_exact
-            and not is_new_latest
-            and is_genuine_fu
-            and not is_vague_question(question)
-        )
-
-        # ── Multi-turn follow-up ──────────────────────────────────────
-        if should_reuse:
-            prompt = build_prompt(question, request.previous_sources, request.chat_history)  # type: ignore[arg-type]
-            answer = _safe_ai_answer(self.openai_client, prompt, request.previous_sources)
-            return {
-                "answer": answer,
-                "sources": request.previous_sources if request.include_sources else [],
-                "detected_category": (
-                    request.previous_sources[0]["source_type"]
-                    if request.previous_sources
-                    else request.category or "law"
-                ),
-            }
-
-        # ── Exact-number search ───────────────────────────────────────
-        if is_new_exact:
-            return self._exact_search(question, request)
-
-        # ── "Latest" search ───────────────────────────────────────────
-        if is_new_latest:
-            return self._latest_search(question, request)
-
-        # ── Hybrid search ─────────────────────────────────────────────
-        return self._hybrid_search(question, request)
-
-    # ── Search strategies ───────────────────────────────────────────
-
-    def _exact_search(
-        self, question: str, request: QuestionRequest
-    ) -> Dict[str, Any]:
-        patterns = [f"%{law_number}%" for law_number in [extract_number(question) or ""]]
-        if request.chat_history:
-            # Build patterns
-            num = extract_number(question) or ""
-            patterns = [f"%{num}%", num, f"% {num}%", f"%{num} %"]
-
-        for pattern in [p for p in patterns if p]:
-            if is_decree_question(question):
-                self.mysql_cursor.execute(
-                    """
-                    SELECT * FROM laws
-                    WHERE (law_number LIKE %s OR title LIKE %s)
-                      AND law_type LIKE '%%مرسوم%%'
-                    LIMIT 5
-                    """,
-                    (pattern, pattern),
-                )
-            else:
-                self.mysql_cursor.execute(
-                    """
-                    SELECT * FROM laws
-                    WHERE law_number LIKE %s OR title LIKE %s
-                    LIMIT 5
-                    """,
-                    (pattern, pattern),
-                )
-            exact_rows = self.mysql_cursor.fetchall()
-            if exact_rows:
-                break
+        # 4. Semantic / Hybrid Search (Default)
         else:
-            # No results for any pattern
-            return {
-                "answer": (
-                    "عذراً، لم أتمكن من العثور على قانون بهذا الرقم في قاعدة البيانات. "
-                    "يرجى التحقق من رقم القانون أو السؤال عن موضوع آخر."
-                ),
-                "sources": [],
-                "detected_category": "law",
-            }
+            logger.info("Routing: Hybrid Semantic Search")
+            return self._hybrid_search(question, request)
 
-        sources: List[Dict[str, Any]] = []
-        context_parts: List[str] = []
-
-        for i, row in enumerate(exact_rows):
-            meta = {
-                "source_type": "law",
-                "title":      row.get("title", ""),
-                "law_number": row.get("law_number", ""),
-                "law_type":   row.get("law_type", ""),
-                "law_date":   row.get("law_date", ""),
-                "link":       row.get("link", ""),
-            }
-            content = row.get("content", "") or ""
-            if not content.strip():
-                content = f"[تفاصيل غير محفوظة] - {meta['title']}"
-
-            sources.append(_build_source(i + 1, meta, content, 100))
-            context_parts.append(
-                f"\n{'='*50}\n"
-                f"SOURCE {i+1}: {meta['law_type']} رقم {meta['law_number']}\n"
-                f"العنوان: {meta['title']}\n"
-                f"التاريخ: {meta['law_date']}\n"
-                f"{'='*50}\n{content}\n"
-            )
-
-        context = "\n".join(context_parts)
-        prompt = _EXACT_SEARCH_PROMPT_TEMPLATE.format(context=context, question=question)
-        answer = _safe_ai_answer(self.openai_client, prompt, sources)
+        # Generate Final AI Answer
+        prompt = self._build_final_prompt(question, context, request.chat_history)
+        answer = self._call_llm(prompt, sources)
 
         return {
             "answer": answer,
             "sources": sources,
-            "detected_category": sources[0].get("source_type", "law") if sources else "law",
+            "detected_category": sources[0]["source_type"] if sources else "law"
         }
 
-    def _latest_search(
-        self, question: str, request: QuestionRequest
-    ) -> Dict[str, Any]:
-        context, sources = _fetch_latest_laws(self.mysql_cursor)
+    # ── Search Strategies ──
 
-        prompt = (
-            "أجب فقط حسب المصادر التالية:\n\n"
-            f"{context}\n\n"
-            f"السؤال:\n{question}"
-        )
-        answer = _safe_ai_answer(self.openai_client, prompt, sources)
+    def _exact_search(self, question: str, num: str) -> Dict[str, Any]:
+        # Search by number in MySQL
+        query = "SELECT * FROM laws WHERE law_number LIKE %s OR title LIKE %s LIMIT 3"
+        self.mysql_cursor.execute(query, (f"%{num}%", f"%{num}%"))
+        rows = self.mysql_cursor.fetchall()
 
-        return {
-            "answer": answer,
-            "sources": sources,
-            "detected_category": sources[0].get("source_type", "law") if sources else "law",
-        }
+        if not rows:
+            return {"answer": f"عذراً، لم أجد قانوناً بالرقم {num} في سجلاتي.", "sources": []}
 
-    def _hybrid_search(
-        self, question: str, request: QuestionRequest
-    ) -> Dict[str, Any]:
-        query_text = question.strip()
-        query_vec  = self.chroma_model.encode("query: " + query_text).tolist()
+        sources = []
+        context = ""
+        for i, row in enumerate(rows):
+            sources.append(_build_source(i+1, row, row['content'], 100))
+            context += f"قانون رقم {row['law_number']}: {row['title']}\nالمحتوى: {row['content']}\n"
 
-        where_filter: Optional[Dict[str, str]] = (
-            {"source_type": request.category}
-            if request.category in ("law", "tender")
-            else None
-        )
+        prompt = f"استخدم النص التالي للإجابة بدقة عن القانون رقم {num}:\n{context}\nالسؤال: {question}"
+        answer = self._call_llm(prompt, sources)
+        return {"answer": answer, "sources": sources, "detected_category": "law"}
 
-        semantic_results = self.chroma_collection.query(
-            query_embeddings=[query_vec],
+    def _hybrid_search(self, question: str, request: QuestionRequest) -> Dict[str, Any]:
+        # Semantic query in ChromaDB
+        query_vec = self.chroma_model.encode("query: " + question).tolist()
+        
+        # Apply category filter if selected in UI
+        where_filter = {"source_type": request.category} if request.category in ["law", "tender"] else None
+        
+        results = self.chroma_collection.query(
+            query_embeddings=[query_vec], 
             n_results=request.max_results,
-            where=where_filter,
+            where=where_filter
         )
 
-        candidates: List[Dict[str, Any]] = []
-        seen_keys: set = set()
-
-        docs      = semantic_results.get("documents", [[]])[0]
-        metas     = semantic_results.get("metadatas",  [[]])[0]
-        distances = semantic_results.get("distances", [[]])[0]
+        sources = []
+        context = ""
+        docs = results.get("documents", [[]])[0]
+        metas = results.get("metadatas", [[]])[0]
+        dists = results.get("distances", [[]])[0]
 
         for i in range(len(docs)):
-            content = docs[i]
-            meta    = metas[i]
-            dist    = distances[i]
+            score = max(0, 100 - (dists[i] * 50))
+            sources.append(_build_source(i+1, metas[i], docs[i], score))
+            context += f"المصدر {i+1}: {docs[i]}\n"
 
-            sem_score   = max(0.0, 1.0 - (dist / 1.5))
-            date_score  = extract_date_score(meta.get("law_date", ""))
-            kw_score    = keyword_bonus(query_text, content)
-            final_score = sem_score * 0.55 + date_score * 0.25 + kw_score * 0.20
+        if not sources:
+            return {"answer": "لم أجد نتائج مطابقة لبحثك. حاول تغيير كلمات البحث.", "sources": []}
 
-            source_key = (content[:180], meta.get("link", ""), meta.get("law_number", ""))
-            if source_key in seen_keys:
-                continue
-            seen_keys.add(source_key)
+        prompt = self._build_final_prompt(question, context, request.chat_history)
+        answer = self._call_llm(prompt, sources)
+        return {"answer": answer, "sources": sources, "detected_category": sources[0]["source_type"]}
 
-            candidates.append({"content": content, "meta": meta, "score": final_score})
+    # ── LLM Utilities ──
 
-        # ── MySQL lexical fallback ───────────────────────────────────
-        if request.category in ("all", "law"):
-            self.mysql_cursor.execute(
-                """
-                SELECT * FROM laws
-                WHERE title LIKE %s OR content LIKE %s OR law_number LIKE %s
-                LIMIT 5
-                """,
-                (f"%{query_text}%", f"%{query_text}%", f"%{query_text}%"),
+    def _build_final_prompt(self, question: str, context: str, history: List[Any]) -> str:
+        history_str = "\n".join([f"{m.role}: {m.content}" for m in history[-4:]])
+        return f"""
+أنت مساعد خبير في القوانين والمناقصات اللبنانية. 
+أجب بناءً على المصادر المقدمة فقط. تجاهل المقدمات الروتينية مثل "بناءً على الدستور" إلا إذا كانت هي صلب السؤال.
+
+سياق المحادثة السابقة:
+{history_str}
+
+المصادر القانونية:
+{context}
+
+السؤال الحالي: {question}
+الإجابة المفصلة باللغة العربية:"""
+
+    def _call_llm(self, prompt: str, sources: List[Dict[str, Any]]) -> str:
+        try:
+            response = self.openai_client.chat.completions.create(
+                model="openai/gpt-3.5-turbo", # Recommended for speed/cost on Railway
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1 # Low temperature for factual accuracy
             )
-            exact_rows = self.mysql_cursor.fetchall()
-
-            for row in exact_rows:
-                content = row.get("content", "") or ""
-                meta = {
-                    "source_type": "law",
-                    "title":      row.get("title", ""),
-                    "law_number": row.get("law_number", ""),
-                    "law_type":   row.get("law_type", ""),
-                    "law_date":   row.get("law_date", ""),
-                    "link":       row.get("link", ""),
-                }
-                source_key = (content[:180], meta.get("link", ""), meta.get("law_number", ""))
-                if source_key in seen_keys:
-                    continue
-                seen_keys.add(source_key)
-
-                date_score = extract_date_score(meta.get("law_date", ""))
-                kw_score   = keyword_bonus(query_text, content)
-                lex_score  = 0.45 + date_score * 0.25 + kw_score * 0.30
-
-                candidates.append({"content": content, "meta": meta, "score": lex_score})
-
-        if request.category in ("all", "tender"):
-            try:
-                self.mysql_cursor.execute(
-                    """
-                    SELECT * FROM tenders
-                    WHERE title LIKE %s OR summary LIKE %s
-                    LIMIT 5
-                    """,
-                    (f"%{query_text}%", f"%{query_text}%"),
-                )
-                exact_rows = self.mysql_cursor.fetchall()
-
-                for row in exact_rows:
-                    # We'll assume the tenders table has a 'content' field for the full text, and if not, we use summary.
-                    content = row.get("content", "") or row.get("summary", "") or ""
-                    if not content.strip():
-                        content = f"[تفاصيل غير محفوظة] - {row.get('title', '')}"
-
-                    meta = {
-                        "source_type": "tender",
-                        "title": row.get("title", ""),
-                        "summary": row.get("summary", ""),
-                        "document_location": row.get("document_location", ""),
-                        "final_submission_deadline": row.get("final_submission_deadline", ""),
-                        "link": row.get("link", ""),
-                    }
-                    source_key = (content[:180], meta.get("link", ""), meta.get("title", ""))  # Using title as a fallback for number
-                    if source_key in seen_keys:
-                        continue
-                    seen_keys.add(source_key)
-
-                    # For tenders, we don't have a date field in the same way, so we'll use a fixed date score of 0.5
-                    # Alternatively, we could try to extract a date from the deadline, but we don't have a function for that.
-                    # We'll set date_score to 0.5 as a neutral value.
-                    date_score = 0.5
-                    kw_score   = keyword_bonus(query_text, content)
-                    lex_score  = 0.45 + date_score * 0.25 + kw_score * 0.30
-
-                    candidates.append({"content": content, "meta": meta, "score": lex_score})
-            except Exception:
-                # If the tenders table doesn't exist or any other error, we skip the tender fallback
-                pass
-
-        # ── Rank & select ────────────────────────────────────────────
-        candidates.sort(key=lambda x: x["score"], reverse=True)
-        top = candidates[: request.max_results]
-
-        if not top:
-            return {
-                "answer": (
-                    "عذراً، لم أتمكن من العثور على معلومات عن سؤالك في قاعدة البيانات. "
-                    "يرجى محاولة سؤال مختلف أو موضوع آخر."
-                ),
-                "sources": [],
-                "detected_category": request.category or "law",
-            }
-
-        if is_vague_question(question):
-            return {
-                "answer": (
-                    "عذراً، سؤالك غير واضح. يرجى تقديم سؤال أكثر تحديداً مثل:\n"
-                    "- 'ما هي قوانين الاستثمار؟'\n"
-                    "- 'أخبرني عن القانون رقم 620'\n"
-                    "- 'ما هي آخر المراسيم؟'"
-                ),
-                "sources": [],
-                "detected_category": request.category or "law",
-            }
-
-        sources = [
-            _build_source(i + 1, item["meta"], item["content"], item["score"] * 100)
-            for i, item in enumerate(top)
-        ]
-
-        if not check_confidence_threshold(sources):
-            return {
-                "answer": (
-                    "عذراً، لم أتمكن من العثور على معلومات دقيقة كافية عن سؤالك. يرجى:\n"
-                    "- إعادة صياغة السؤال بشكل أكثر وضوحاً\n"
-                    "- تقديم كلمات مفتاحية أكثر تحديداً\n"
-                    "- السؤال عن موضوع أو قانون معين"
-                ),
-                "sources": [],
-                "detected_category": request.category or "law",
-            }
-
-        prompt = build_prompt(question, sources, request.chat_history)
-        answer = _safe_ai_answer(self.openai_client, prompt, sources)
-
-        # Detect LLM "no knowledge" response
-        answer_lower = answer.lower()
-        is_no_info = any(phrase in answer_lower for phrase in _NO_INFO_PHRASES)
-
-        if is_no_info:
-            return {
-                "answer": answer,
-                "sources": [],
-                "detected_category": (sources[0].get("source_type", request.category or "law") if sources else request.category or "law"),
-            }
-
-        return {
-            "answer": answer,
-            "sources": sources if request.include_sources else [],
-            "detected_category": (sources[0].get("source_type", request.category or "law") if sources else request.category or "law"),
-        }
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"LLM Error: {e}")
+            return sources[0].get("excerpt", "عذراً، تعذر الوصول للذكاء الاصطناعي حالياً.") if sources else "عذراً، حدث خطأ."
