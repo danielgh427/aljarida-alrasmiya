@@ -37,11 +37,9 @@ def _fetch_latest_laws(cursor: Any) -> tuple[str, List[Dict[str, Any]]]:
     def clean_and_parse(date_str):
         if not date_str:
             return datetime.min
-        # Fix: Remove Arabic prefix "تاريخ " to get "DD/MM/YYYY" for parsing
         clean_str = str(date_str).replace("تاريخ", "").strip()
         return parse_law_date(clean_str)
 
-    # Sort by parsed date (newest first), then by ID as tie-breaker
     rows.sort(
         key=lambda row: (clean_and_parse(row.get("law_date")), row.get("id", 0)),
         reverse=True,
@@ -124,6 +122,15 @@ class RagPipeline:
     async def ask(self, request: QuestionRequest) -> Dict[str, Any]:
         """Entry point for the question-answering logic."""
         question = request.question.strip()
+
+        # ── 1. Vague Question Pre-Check ──
+        if is_vague_question(question):
+            logger.info("Routing: Vagueness Detected (Pre-search)")
+            return {
+                "answer": "عذراً، سؤالك غير واضح بما يكفي. هل يمكنك تحديد موضوع معين (مثلاً: قوانين الضرائب) أو رقم قانون محدد؟",
+                "sources": [],
+                "detected_category": request.category or "law"
+            }
         
         # Decide search strategy
         law_number = extract_number(question)
@@ -133,24 +140,23 @@ class RagPipeline:
         sources = []
         context = ""
 
-        # 1. Multi-turn Follow-up Logic
+        # ── 2. Multi-turn Follow-up Logic ──
         if is_followup and request.previous_sources and not law_number and not is_latest:
             logger.info("Routing: Multi-turn Follow-up")
             sources = request.previous_sources
-            # Use .get() for dictionary safety
             context = "\n".join([f"المصدر: {s.get('law_title', s.get('tender_title', ''))}\nالنص: {s.get('excerpt','')}" for s in sources])
         
-        # 2. Exact Law Number Search
+        # ── 3. Exact Law Number Search ──
         elif law_number:
             logger.info(f"Routing: Exact Search for {law_number}")
             return self._exact_search(question, law_number)
 
-        # 3. Chronological "Latest" Search
+        # ── 4. Chronological "Latest" Search ──
         elif is_latest:
             logger.info("Routing: Latest Laws Search")
             context, sources = _fetch_latest_laws(self.mysql_cursor)
 
-        # 4. Semantic / Hybrid Search (Default)
+        # ── 5. Semantic / Hybrid Search (Default) ──
         else:
             logger.info("Routing: Hybrid Semantic Search")
             return self._hybrid_search(question, request)
@@ -203,12 +209,18 @@ class RagPipeline:
         dists = results.get("distances", [[]])[0]
 
         for i in range(len(docs)):
+            # Convert distance to a 0-100 percentage
             score = max(0, 100 - (dists[i] * 50))
             sources.append(_build_source(i+1, metas[i], docs[i], score))
             context += f"المصدر {i+1}: {docs[i]}\n"
 
-        if not sources:
-            return {"answer": "لم أجد نتائج مطابقة لبحثك. حاول تغيير كلمات البحث.", "sources": []}
+        # ── Post-Search Vagueness Check (Low Confidence) ──
+        # If the highest score is below 35%, the results are likely irrelevant (vague)
+        if not sources or sources[0]['percentage'] < 35:
+            return {
+                "answer": "عذراً، لم أجد نتائج مطابقة تماماً لسؤالك. يرجى محاولة توضيح سؤالك أو استخدام كلمات مفتاحية أدق.",
+                "sources": []
+            }
 
         prompt = self._build_final_prompt(question, context, request.chat_history)
         answer = self._call_llm(prompt, sources)
@@ -217,11 +229,10 @@ class RagPipeline:
     # ── LLM Utilities ──
 
     def _build_final_prompt(self, question: str, context: str, history: List[Dict[str, Any]]) -> str:
-        # Fix: Use .get() to access dictionary keys safely
         history_str = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in history[-4:]])
         return f"""
 أنت مساعد خبير في القوانين والمناقصات اللبنانية. 
-أجب بناءً على المصادر المقدمة فقط. تجاهل المقدمات الروتينية مثل "بناءً على الدستور" إلا إذا كانت هي صلب السؤال.
+أجب بناءً على المصادر المقدمة فقط. 
 
 سياق المحادثة السابقة:
 {history_str}
@@ -242,4 +253,4 @@ class RagPipeline:
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"LLM Error: {e}")
-            return sources[0].get("excerpt", "عذراً، تعذر الوصول للذكاء الاصطناعي حالياً.") if sources else "عذراً، حدث خطأ."
+            return sources[0].get("excerpt", "عذراً، تعذر الوصول للذكاء الاصطناعي.") if sources else "خطأ فني."

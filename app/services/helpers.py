@@ -76,7 +76,7 @@ _FOLLOWUP_PATTERNS: List[str] = [
 _VAGUE_PATTERNS: List[str] = [
     "تفاصيل", "معلومات", "اختصر", "ملخص",
     "المزيد", "أكثر", "tell me", "give me",
-    "hello", "hi", "مرحبا", "ما هذا", "ما هو", "what is",
+    "hello", "hi", "مرحبا", "ما هذا", "ما هو", "what is", "","...","?","!",".",","
 ]
 
 _SPECIFIC_KEYWORDS: List[str] = [
