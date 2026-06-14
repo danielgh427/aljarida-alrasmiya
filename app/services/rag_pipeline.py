@@ -1,27 +1,19 @@
 """RAG pipeline — orchestrates embedding model, vector DB, MySQL, and LLM."""
 from __future__ import annotations
 
-import re
 import logging
-import traceback
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import chromadb
-import mysql.connector
 from openai import OpenAI
 
 from app.schemas.request import QuestionRequest
 from app.services.helpers import (
-    build_prompt,
-    check_confidence_threshold,
-    extract_date_score,
     extract_number,
-    is_decree_question,
     is_followup_question,
     is_latest_question,
     is_vague_question,
-    keyword_bonus,
     parse_law_date,
 )
 
@@ -123,16 +115,13 @@ class RagPipeline:
         """Entry point for the question-answering logic."""
         question = request.question.strip()
 
-        # ── 1. Vague Question Pre-Check ──
         if is_vague_question(question):
-            logger.info("Routing: Vagueness Detected (Pre-search)")
             return {
-                "answer": "عذراً، سؤالك غير واضح بما يكفي. هل يمكنك تحديد موضوع معين (مثلاً: قوانين الضرائب) أو رقم قانون محدد؟",
+                "answer": "عذراً، سؤالك غير واضح بما يكفي. هل يمكنك تحديد موضوع معين؟",
                 "sources": [],
                 "detected_category": request.category or "law"
             }
         
-        # Decide search strategy
         law_number = extract_number(question)
         is_latest = is_latest_question(question)
         is_followup = is_followup_question(question)
@@ -140,28 +129,19 @@ class RagPipeline:
         sources = []
         context = ""
 
-        # ── 2. Multi-turn Follow-up Logic ──
         if is_followup and request.previous_sources and not law_number and not is_latest:
-            logger.info("Routing: Multi-turn Follow-up")
             sources = request.previous_sources
             context = "\n".join([f"المصدر: {s.get('law_title', s.get('tender_title', ''))}\nالنص: {s.get('excerpt','')}" for s in sources])
         
-        # ── 3. Exact Law Number Search ──
         elif law_number:
-            logger.info(f"Routing: Exact Search for {law_number}")
             return self._exact_search(question, law_number)
 
-        # ── 4. Chronological "Latest" Search ──
         elif is_latest:
-            logger.info("Routing: Latest Laws Search")
             context, sources = _fetch_latest_laws(self.mysql_cursor)
 
-        # ── 5. Semantic / Hybrid Search (Default) ──
         else:
-            logger.info("Routing: Hybrid Semantic Search")
             return self._hybrid_search(question, request)
 
-        # Generate Final AI Answer
         prompt = self._build_final_prompt(question, context, request.chat_history)
         answer = self._call_llm(prompt, sources)
 
@@ -171,15 +151,13 @@ class RagPipeline:
             "detected_category": sources[0].get("source_type", "law") if sources else "law"
         }
 
-    # ── Search Strategies ──
-
     def _exact_search(self, question: str, num: str) -> Dict[str, Any]:
         query = "SELECT * FROM laws WHERE law_number LIKE %s OR title LIKE %s LIMIT 3"
         self.mysql_cursor.execute(query, (f"%{num}%", f"%{num}%"))
         rows = self.mysql_cursor.fetchall()
 
         if not rows:
-            return {"answer": f"عذراً، لم أجد قانوناً بالرقم {num} في سجلاتي.", "sources": []}
+            return {"answer": f"عذراً، لم أجد قانوناً بالرقم {num}.", "sources": []}
 
         sources = []
         context = ""
@@ -193,7 +171,6 @@ class RagPipeline:
 
     def _hybrid_search(self, question: str, request: QuestionRequest) -> Dict[str, Any]:
         query_vec = self.chroma_model.encode("query: " + question).tolist()
-        
         where_filter = {"source_type": request.category} if request.category in ["law", "tender"] else None
         
         results = self.chroma_collection.query(
@@ -209,39 +186,20 @@ class RagPipeline:
         dists = results.get("distances", [[]])[0]
 
         for i in range(len(docs)):
-            # Convert distance to a 0-100 percentage
             score = max(0, 100 - (dists[i] * 50))
             sources.append(_build_source(i+1, metas[i], docs[i], score))
             context += f"المصدر {i+1}: {docs[i]}\n"
 
-        # ── Post-Search Vagueness Check (Low Confidence) ──
-        # If the highest score is below 35%, the results are likely irrelevant (vague)
         if not sources or sources[0]['percentage'] < 35:
-            return {
-                "answer": "عذراً، لم أجد نتائج مطابقة تماماً لسؤالك. يرجى محاولة توضيح سؤالك أو استخدام كلمات مفتاحية أدق.",
-                "sources": []
-            }
+            return {"answer": "عذراً، لم أجد نتائج مطابقة تماماً لسؤالك.", "sources": []}
 
         prompt = self._build_final_prompt(question, context, request.chat_history)
         answer = self._call_llm(prompt, sources)
         return {"answer": answer, "sources": sources, "detected_category": sources[0].get("source_type", "law")}
 
-    # ── LLM Utilities ──
-
     def _build_final_prompt(self, question: str, context: str, history: List[Dict[str, Any]]) -> str:
         history_str = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in history[-4:]])
-        return f"""
-أنت مساعد خبير في القوانين والمناقصات اللبنانية. 
-أجب بناءً على المصادر المقدمة فقط. 
-
-سياق المحادثة السابقة:
-{history_str}
-
-المصادر القانونية:
-{context}
-
-السؤال الحالي: {question}
-الإجابة المفصلة باللغة العربية:"""
+        return f"سياق المحادثة:\n{history_str}\n\nالمصادر:\n{context}\n\nالسؤال: {question}\nالإجابة بالعربية:"
 
     def _call_llm(self, prompt: str, sources: List[Dict[str, Any]]) -> str:
         try:
@@ -253,4 +211,4 @@ class RagPipeline:
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"LLM Error: {e}")
-            return sources[0].get("excerpt", "عذراً، تعذر الوصول للذكاء الاصطناعي.") if sources else "خطأ فني."
+            return sources[0].get("excerpt", "عذراً، تعذر الوصول للذكاء الاصطناعي.") if sources else "خطأ."
