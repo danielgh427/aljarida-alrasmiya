@@ -22,7 +22,12 @@ flowchart TD
         LLM["openai-gpt-oss-20b-free<br/>REST API over HTTPS"]
     end
 
+    subgraph Prod["Production Deployment - Railway"]
+        RAILWAY["Al Jarida AI Production<br/>https://aljarida-alrasmiya-production-bf58.up.railway.app/"]
+    end
+
     BROWSER  -->|"POST /ask and GET /health"| Port8000
+    BROWSER  -->|"Open production UI"| RAILWAY
     Port8000 -->|"SELECT and INSERT"| Port3306
     Port8000 -->|"OpenAI-compatible POST /v1/chat/completions"| Cloud
     DW       -->|"INSERT"| Port3306

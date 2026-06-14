@@ -35,6 +35,15 @@ flowchart LR
         FN5["link_lists.bin"]
     end
 
+    subgraph SERVICE["Service Layer"]
+        BP["build_prompt()"]
+        RP["RagPipeline.ask()"]
+        CE["ChromaDB (semantic search)"]
+        MQ["MySQL (keyword_bonus)"]
+        L[["OpenRouter"]]
+        CG[["Guardrail evaluation"]]
+    end
+
     %% Annotations / Notes replaced with Flowchart-compatible styling
     N8N_NOTE(["📝 n8n workflows <br> monitored by admin"])
     GEN_NOTE(["⚙️ IMPLEMENTED <br> Regen via: python -m services.embeddings.vector_store"])
@@ -60,6 +69,11 @@ flowchart LR
     IDX --> FN3
     IDX --> FN4
     IDX --> FN5
+
+    %% Service Layer Routing
+    CE --> RP
+    MQ --> RP
+    GEN --> CE
 
     %% Pinned Annotations
     W1 -.-> N8N_NOTE

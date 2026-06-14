@@ -14,6 +14,11 @@ The system combines:
 
 The chatbot retrieves relevant legal and tender information semantically before generating answers.
 
+## Live Demo
+
+- Production: [Al Jarida AI - تفاعل ذكي مع القوانين والمناقصات](https://aljarida-alrasmiya-production-bf58.up.railway.app/)
+- Local API: `http://localhost:8000`
+
 ---
 
 ## Main Features
@@ -235,7 +240,7 @@ Output URLs:
 |---|---|
 | `http://localhost:8000/docs` | Interactive Swagger / OpenAPI docs |
 | `http://localhost:8000/health` | Health check |
-| Frontend: `frontend/index.html` | Local browser chat UI |
+| Frontend: `Frontend/index.html` | Local browser chat UI |
 
 ### 10. Frontend (`frontend/`)
 
@@ -309,6 +314,43 @@ python scripts/server.py
 ```
 
 API is then available at `http://localhost:8000`.
+
+### 7. Production Deployment
+
+The public production deployment is available at:
+- [Al Jarida AI - تفاعل ذكي مع القوانين والمناقصات](https://aljarida-alrasmiya-production-bf58.up.railway.app/)
+
+For local development, use:
+- API: `http://localhost:8000`
+- Swagger docs: `http://localhost:8000/docs`
+- Health check: `http://localhost:8000/health`
+- Frontend UI: `Frontend/index.html`
+
+Recommended production practice:
+- Use a managed MySQL service.
+- Keep `OPENROUTER_API_KEY` and database credentials in environment variables.
+- Use Docker Compose for local development if desired:
+  ```bash
+  docker-compose up --build
+  ```
+- Rebuild the Chroma index after any data changes:
+  ```bash
+  python -m services.embeddings.vector_store
+  ```
+
+### 8. Security
+
+This project includes Snyk scanning in GitHub Actions for:
+- Python dependency vulnerabilities (`requirements.txt`)
+- Docker container security checks (`Dockerfile`)
+
+A sample Snyk workflow is defined in `.github/workflows/snyk.yml`.
+- Docker image security (`Dockerfile`)
+
+Security notes:
+- Do not commit `data/vector_db/chroma.sqlite3`, `.env`, or `.venv`.
+- Keep secret values in deployment environment variables only.
+- Use `.env.example` as the template for local setup.
 
 ---
 

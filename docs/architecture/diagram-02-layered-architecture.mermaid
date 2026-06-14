@@ -18,26 +18,13 @@ flowchart TD
         CHROMA["ChromaDB Persistent<br>data/vector_db/<br>HNSW Lucene Index<br>SQLite meta + 768-dim embeddings"]
     end
 
-    subgraph FASTAPI["FastAPI Application Layer (app/main.py)"]
-        HLTH["GET /health"]
-        ASK["POST /ask<br>QuestionRequest Pydantic"]
-        CAT["RagPipeline<br>category detection<br>law | tender | all"]
-        VAG["is_vague_question()<br>guardrail reject"]
-        FUQ["is_followup_question()<br>chat history detection"]
-        CONF["check_confidence_threshold<br>min similarity 40%"]
-        BONUS["keyword_bonus + extract_date_score<br>re-rank MySQL fallback results"]
+    subgraph SERVICE["Service Layer"]
         RAG["build_prompt()<br>RAG context assembly"]
-        LLM_A["OpenRouter gpt-oss-20b:free<br>chat.completions.create()"]
-        ASKR["AskResponse<br>answer + sources + detected_category"]
+    end
 
-        ASK --> CAT
-        CAT --> VAG
-        VAG --> FUQ
-        FUQ --> CONF
-        CONF --> BONUS
-        BONUS --> RAG
-        RAG --> LLM_A
-        LLM_A --> ASKR
+    subgraph FASTAPI["FastAPI Application Layer (app/main.py)"]
+        ASK -->|POST /ask| SERVICE/RAG
+        BONUS -->|keyword_bonus + date fallback| SERVICE/RAG
     end
 
     subgraph CORS_MW["CORS / Middleware"]

@@ -21,6 +21,7 @@ pip-selfcheck.json
 
 # ─── Data / Vector DB ─────────────────────────────────────────────────────
 !data/
+data/vector_db/*
 !data/vector_db/.gitkeep   # placeholder so the dir can be empty in git
 
 # ─── IDE / OS noise ───────────────────────────────────────────────────────
