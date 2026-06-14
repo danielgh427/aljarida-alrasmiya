@@ -46,6 +46,7 @@ jobs:
           # Run tests but allow them to pass for the UI even if logic fails
           pytest tests/ -v || true 
         env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DB_HOST: 127.0.0.1
           DB_USER: root
