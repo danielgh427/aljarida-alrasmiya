@@ -1,3 +1,0 @@
-# Snyk Authentication Token
-# Replace with your actual Snyk API token
-SNYK_TOKEN=your-snyk-api-token-here
