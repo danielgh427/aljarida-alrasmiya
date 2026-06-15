@@ -204,7 +204,7 @@ class RagPipeline:
     def _call_llm(self, prompt: str, sources: List[Dict[str, Any]]) -> str:
         try:
             response = self.openai_client.chat.completions.create(
-                model="openai/gpt-3.5-turbo",
+                model="openai/gpt-oss-20b:free",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1 
             )
