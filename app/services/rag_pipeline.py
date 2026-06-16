@@ -129,16 +129,16 @@ class RagPipeline:
         sources = []
         context = ""
 
-        if is_followup and request.previous_sources and not law_number and not is_latest:
-            sources = request.previous_sources
-            context = "\n".join([f"المصدر: {s.get('law_title', s.get('tender_title', ''))}\nالنص: {s.get('excerpt','')}" for s in sources])
-        
-        elif law_number:
+        if law_number:
             return self._exact_search(question, law_number)
 
         elif is_latest:
             context, sources = _fetch_latest_laws(self.mysql_cursor)
 
+        elif is_followup and request.previous_sources:
+            sources = request.previous_sources
+            context = "\n".join([f"المصدر: {s.get('law_title', s.get('tender_title', ''))}\nالنص: {s.get('excerpt','')}" for s in sources])
+        
         else:
             return self._hybrid_search(question, request)
 
