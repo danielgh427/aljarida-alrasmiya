@@ -10,10 +10,12 @@ from openai import OpenAI
 
 from app.schemas.request import QuestionRequest
 from app.services.helpers import (
+    extract_date_score,
     extract_number,
     is_followup_question,
     is_latest_question,
     is_vague_question,
+    keyword_bonus,
     parse_law_date,
 )
 
@@ -186,9 +188,14 @@ class RagPipeline:
         dists = results.get("distances", [[]])[0]
 
         for i in range(len(docs)):
-            score = max(0, 100 - (dists[i] * 50))
-            sources.append(_build_source(i+1, metas[i], docs[i], score))
-            context += f"المصدر {i+1}: {docs[i]}\n"
+            final_pct = self._compute_hybrid_score(
+                distance=dists[i],
+                metadata=metas[i],
+                question=question,
+                content=docs[i],
+            )
+            sources.append(_build_source(i + 1, metas[i], docs[i], final_pct))
+            context += f"المصدر {i + 1}: {docs[i]}\n"
 
         if not sources or sources[0]['percentage'] < 35:
             return {"answer": "عذراً، لم أجد نتائج مطابقة تماماً لسؤالك.", "sources": []}
@@ -196,6 +203,21 @@ class RagPipeline:
         prompt = self._build_final_prompt(question, context, request.chat_history)
         answer = self._call_llm(prompt, sources)
         return {"answer": answer, "sources": sources, "detected_category": sources[0].get("source_type", "law")}
+
+    def _compute_hybrid_score(
+        self,
+        distance: float,
+        metadata: Dict[str, Any],
+        question: str,
+        content: str,
+    ) -> float:
+        """Rank results with semantic, date recency, and keyword overlap."""
+        sem_score = max(0.0, 100.0 - (distance * 50.0))
+        date_score = extract_date_score(metadata.get("law_date") or metadata.get("date")) * 100.0
+        keyword_bonus_val = keyword_bonus(question, content) * 100.0
+        return round(
+            (sem_score * 0.55) + (date_score * 0.25) + (keyword_bonus_val * 0.20), 1
+        )
 
     def _build_final_prompt(self, question: str, context: str, history: List[Dict[str, Any]]) -> str:
         history_str = "\n".join([f"{m.get('role', 'user')}: {m.get('content', '')}" for m in history[-4:]])
